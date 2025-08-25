@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<h2>All Products</h2>
+
+<form id="searchForm">
+    <input type="text" id="searchInput" placeholder="Search product">
+</form>
+<div id="products"></div>
+<div id="products1"></div>
+
+<script>
+    document.getElementById('searchForm').addEventListener('submit', function(event) {
+        event.preventDefault();
+        const searchInput = document.getElementById('searchInput').value;
+        const productsDiv = document.getElementById('products1');
+        productsDiv.innerHTML = '';
+
+        // Store the search term
+        const searchTerm = searchInput;
+
+        // Fetch products based on search input
+        fetch(`http://localhost:4444/allproducts/search?name=${searchInput}`)
+            .then(response => response.json())
+            .then(data => {
+                data.forEach(product => {
+                    const productDiv = document.createElement('div');
+                    productDiv.innerHTML = `
+                        <h3>${product.name}</h3>
+                        <p>Price: ${product.price}</p>
+                        <img src="${product.image || ''}" alt="${product.name}" />
+                    `;
+                    productsDiv.appendChild(productDiv);
+                });
+            })
+            .catch(error => console.error('Error:', error));
+
+        // Set back the search term to the input field
+        document.getElementById('searchInput').value = searchTerm;
+    });
+</script>
+
+</body>
+</html>
