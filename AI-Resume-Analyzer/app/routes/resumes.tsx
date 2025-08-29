@@ -1,4 +1,3 @@
-import { A } from 'node_modules/react-router/dist/development/routeModules-rOzWJJ9x';
 import React, { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router';
 import ATS from '~/components/ATS';
@@ -81,7 +80,7 @@ const resumes = () => {
                         <Details feedback={feedback} />
                     </div>
                 ): (
-                    <img src="/images/resume-scane-2.gif" className='w-full' alt="" />
+                    <img src="/images/resume-scan-2.gif" className='w-full' alt="" />
                 )}
             </section>
         </div>
