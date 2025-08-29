@@ -112,15 +112,15 @@ const upload = () => {
                 <form id="upload-form" onSubmit={handleSubmit} className='flex flex-col gap-4 mt-8' >
                     <div className='form-div'>
                         <label htmlFor="company-name">Company Name</label>
-                        <input type="text" id="company-name" name="company-name" placeholder='Company Name' required />
+                        <input type="text" id="company-name" name="company-name" placeholder='Company Name' />
                     </div>
                     <div className='form-div'>
                         <label htmlFor="job-title">Job Title</label>
-                        <input type="text" id="job-title" name="job-title" placeholder='Job Title' required />
+                        <input type="text" id="job-title" name="job-title" placeholder='Job Title' />
                     </div>
                     <div className='form-div'>
                         <label htmlFor="job-description">Job Description</label>
-                        <textarea rows={5} id="job-description" name="job-description" placeholder='Job Description' required />
+                        <textarea rows={5} id="job-description" name="job-description" placeholder='Job Description' />
                     </div>
 
                     <div className='form-div'>
