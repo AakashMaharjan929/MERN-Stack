@@ -1,3 +1,4 @@
+// Updated showRoutes.js - Reordered routes to put specific ones before catch-all /:id
 import express from "express";
 import {
   addShow,
@@ -8,7 +9,11 @@ import {
   getCurrentPrice,
   bookSeats,
   cancelSeats,
-  getAvailableSeats,   // 🔑 add this
+  getAvailableSeats,
+  bulkCreateShows,
+  checkConflicts,
+  suggestFactors, // New import
+  optimizeShow, // NEW: Import for manual optimization
 } from "../controllers/showController.js";
 
 const router = express.Router();
@@ -20,6 +25,9 @@ const router = express.Router();
 // Add a new show
 router.post("/", addShow);
 
+// Bulk create shows (for Bulk Scheduling)
+router.post("/bulk", bulkCreateShows);
+
 // Update a show
 router.put("/:id", updateShow);
 
@@ -29,14 +37,21 @@ router.delete("/:id", deleteShow);
 // Get all shows
 router.get("/", getAllShows);
 
-// Get single show by ID
+// Specific utility routes (MUST come before /:id catch-all)
+router.get("/suggest-factors", suggestFactors);
+router.get("/conflicts", checkConflicts);
+
+// NEW: Manual post-show optimization
+router.post("/:id/optimize", optimizeShow);
+
+// Get single show by ID (catch-all for /:id)
 router.get("/:id", getShowById);
 
 // Get calculated price for a show (requires ?seatType=Premium or Standard)
 router.get("/:id/price", getCurrentPrice);
 
 // Get available seats for a show
-router.get("/:id/seats", getAvailableSeats);   // 🔑 NEW
+router.get("/:id/seats", getAvailableSeats);
 
 // Book seats
 router.post("/:id/book", bookSeats);

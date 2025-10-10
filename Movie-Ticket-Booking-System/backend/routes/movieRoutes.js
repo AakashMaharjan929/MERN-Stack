@@ -5,6 +5,8 @@ import {
   deleteMovie,
   rateMovie,
   getMoviesByGenre,
+  getMoviesByLanguage, // New import
+  searchMovies, // New import
   getTopRatedMovies,
   getAllMovies,
   getMovieById
@@ -60,10 +62,16 @@ router.post("/:id/rate", rateMovie);
 // Get movies by genre
 router.get("/genre/:genre", getMoviesByGenre);
 
-// Get top-rated movies
+// Get movies by language (New)
+router.get("/language/:language", getMoviesByLanguage);
+
+// Search movies by title/description (New: e.g., GET /search?query=avengers&limit=10)
+router.get("/search", searchMovies);
+
+// Get top-rated movies (supports ?limit=10)
 router.get("/top-rated", getTopRatedMovies);
 
-// Get all movies
+// Get all movies (supports ?page=1&limit=10)
 router.get("/", getAllMovies);
 
 // Get single movie by ID

@@ -6,7 +6,8 @@ import {
   updateScreen,
   deleteScreen,
   getSeatLayout,
-  getSeatsByType // <-- new controller
+  getSeatsByType, 
+  getCapacityBreakdown
 } from "../controllers/screenController.js";
 
 const router = express.Router();
@@ -35,5 +36,8 @@ router.get("/:id/seat-layout", getSeatLayout);
 
 // Get seats by type (Standard or Premium)
 router.get("/:id/seats/:type", getSeatsByType);
+
+// ... existing routes
+router.get("/:id/capacity", getCapacityBreakdown);
 
 export default router;

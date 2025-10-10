@@ -1,3 +1,4 @@
+// Updated userController.js - Added admin-specific endpoints for customer management
 import User from "../models/User.js";
 
 // -------------------------
@@ -121,6 +122,163 @@ export const cancelUserBooking = async (req, res) => {
     if (!success) return res.status(400).json({ message: "Booking not found or cannot cancel" });
 
     res.status(200).json({ message: "Booking cancelled successfully" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// -------------------------
+// NEW: Admin - Get All Users (with pagination/search/filter)
+// -------------------------
+export const getAllUsers = async (req, res) => {
+  try {
+    const { page = 1, limit = 20, search = '', role = '', status = '' } = req.query;
+    const skip = (page - 1) * limit;
+
+    // Build query
+    const query = {};
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+        { phone: { $regex: search, $options: 'i' } }
+      ];
+    }
+    if (role) query.role = role;
+    if (status) query.status = status;
+
+    const [users, total] = await Promise.all([
+      User.find(query)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit))
+        .select('-password'), // Exclude sensitive fields
+      User.countDocuments(query)
+    ]);
+
+    res.status(200).json({
+      users,
+      pagination: { current: parseInt(page), pages: Math.ceil(total / limit), total }
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// -------------------------
+// NEW: Admin - Get Single User by ID
+// -------------------------
+export const getUserById = async (req, res) => {
+  try {
+    const userId = req.params.id;
+
+    const user = await User.findById(userId).select('-password');
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    res.status(200).json({ user });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// -------------------------
+// NEW: Admin - Update User Role/Status
+// -------------------------
+export const updateUserRole = async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const { role, status } = req.body; // e.g., { role: 'admin' } or { status: 'blacklisted' }
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    if (role && !['customer', 'admin'].includes(role)) {
+      return res.status(400).json({ message: "Invalid role" });
+    }
+    if (status && !['active', 'blacklisted'].includes(status)) {
+      return res.status(400).json({ message: "Invalid status" });
+    }
+
+    if (role) user.role = role;
+    if (status) user.status = status;
+
+    await user.save();
+    res.status(200).json({ message: "User updated successfully", user });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// -------------------------
+// NEW: Admin - Blacklist User (toggle or set)
+// -------------------------
+export const blacklistUser = async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const { blacklist = true } = req.body; // Default to blacklist if not specified
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    user.status = blacklist ? 'blacklisted' : 'active';
+    await user.save();
+
+    const action = blacklist ? 'blacklisted' : 'whitelisted';
+    res.status(200).json({ message: `User ${action} successfully`, user });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// -------------------------
+// NEW: Admin - Bulk Delete Users
+// -------------------------
+export const bulkDeleteUsers = async (req, res) => {
+  try {
+    const { userIds } = req.body;
+
+    if (!Array.isArray(userIds) || userIds.length === 0) {
+      return res.status(400).json({ message: "userIds array required" });
+    }
+
+    const deleted = await User.deleteMany({ _id: { $in: userIds } });
+    res.status(200).json({ message: `${deleted.deletedCount} users deleted successfully` });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// -------------------------
+// NEW: Admin - Bulk Update Roles
+// -------------------------
+export const bulkUpdateRoles = async (req, res) => {
+  try {
+    const updates = req.body; // e.g., [{ userId: 'id1', role: 'admin' }, ...]
+
+    if (!Array.isArray(updates) || updates.length === 0) {
+      return res.status(400).json({ message: "Updates array required" });
+    }
+
+    const results = [];
+    for (const update of updates) {
+      const { userId, role } = update;
+      if (!userId || !role || !['customer', 'admin'].includes(role)) {
+        results.push({ userId, error: 'Invalid update' });
+        continue;
+      }
+
+      const user = await User.findById(userId);
+      if (!user) {
+        results.push({ userId, error: 'User not found' });
+        continue;
+      }
+
+      user.role = role;
+      await user.save();
+      results.push({ userId, success: true });
+    }
+
+    res.status(200).json({ message: 'Bulk update completed', results });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
