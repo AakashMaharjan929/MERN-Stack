@@ -1,4 +1,4 @@
-// Updated AppRoutes.jsx - Added UsersLayout with nested routes for management and blacklist
+// Updated AppRoutes.jsx - Added BookingsLayout with nested routes for cancellations/refunds, ticket history, and revenue breakdown
 import { BrowserRouter, Routes, Route, Navigate, Link } from 'react-router-dom';
 import HomePage from '../pages/HomePage';
 import RegisterPage from '../pages/RegisterPage';
@@ -26,6 +26,10 @@ import ListShows from '../admin/components/Shows/List'; // New import for list s
 import UsersLayout from '../admin/pages/Users'; // New import for users wrapper
 import UsersManagement from '../admin/components/Users/Management'; // TBD: Create this component
 import Blacklist from '../admin/components/Users/Blacklist'; // TBD: Create this component
+import BookingsLayout from '../admin/pages/Bookings'; // New import for bookings wrapper
+import ViewCancellationsRefunds from '../admin/components/Bookings/Cancellations'; // TBD: Create this component
+import TicketHistory from '../admin/components/Bookings/History'; // TBD: Create this component
+import RevenueBreakdown from '../admin/components/Bookings/Revenue'; // TBD: Create this component
 
 function AppRoutes() {
   return (
@@ -72,7 +76,13 @@ function AppRoutes() {
             <Route path="management" element={<UsersManagement />} />
             <Route path="blacklist" element={<Blacklist />} />
           </Route>
-          <Route path="bookings" element={<div className="text-gray-800">Bookings Page (TBD)</div>} />
+          {/* Bookings nested routes - New layout with sub-routes */}
+          <Route path="bookings" element={<BookingsLayout />}>
+            <Route index element={<div className="text-[#6B7280]">Select an action: <Link to="cancellations">View Cancellations/Refunds</Link>, <Link to="history">Ticket History</Link>, or <Link to="revenue">Revenue Breakdown</Link></div>} />
+            <Route path="cancellations" element={<ViewCancellationsRefunds />} />
+            <Route path="history" element={<TicketHistory />} />
+            <Route path="revenue" element={<RevenueBreakdown />} />
+          </Route>
           <Route path="reports" element={<div className="text-gray-800">Reports Page (TBD)</div>} />
           <Route path="settings" element={<div className="text-gray-800">Settings Page (TBD)</div>} />
           {/* Catch-all within /admin/* */}

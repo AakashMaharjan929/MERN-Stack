@@ -1,3 +1,4 @@
+// models/Booking.js - Updated with indexes for performance
 import mongoose from "mongoose";
 import Show from "./Show.js"; // we’ll need this for seat & price checks
 
@@ -20,12 +21,17 @@ const bookingSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Indexes for performance on high-traffic queries
+bookingSchema.index({ showId: 1, status: 1 });
+bookingSchema.index({ bookingDate: -1 });
+bookingSchema.index({ userId: 1, status: 1 });
+
 // ---------------------------
 // Class
 // ---------------------------
 class BookingClass {
 
-     constructor(userId, showId, seatIds, totalPrice = 0, status = "Pending", bookingDate = new Date()) {
+  constructor(userId, showId, seatIds, totalPrice = 0, status = "Pending", bookingDate = new Date()) {
     this.userId = userId;
     this.showId = showId;
     this.seatIds = seatIds;

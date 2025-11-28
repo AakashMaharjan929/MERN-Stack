@@ -1,3 +1,4 @@
+// controllers/bookingController.js - Fixed spread operator bug on undefined query.bookingDate
 import Booking from "../models/Booking.js";
 import Show from "../models/Show.js";
 
@@ -120,14 +121,133 @@ export const getBookingById = async (req, res) => {
 };
 
 // ---------------------------
-// Get all bookings
+// Get all bookings (with optional pagination and filters)
 // ---------------------------
 export const getAllBookings = async (req, res) => {
   try {
-    const bookings = await Booking.find()
-      .populate("userId")
-      .populate("showId");
-    res.json(bookings);
+    const { page = 1, limit = 20, status, userId, showId } = req.query;
+    const query = {};
+    if (status) query.status = status;
+    if (userId) query.userId = userId;
+    if (showId) query.showId = showId;
+
+    const bookings = await Booking.find(query)
+      .populate("userId", "name email")
+      .populate("showId", "title theater screen startTime")
+      .sort({ bookingDate: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    const total = await Booking.countDocuments(query);
+    res.json({ bookings, page, limit, total });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// ---------------------------
+// Get cancellations/refunds (for View Cancellations/Refunds submenu)
+// ---------------------------
+export const getCancellations = async (req, res) => {
+  try {
+    const { page = 1, limit = 20, dateFrom, dateTo } = req.query;
+    const query = { status: "Cancelled" };
+    if (dateFrom) query.bookingDate = { ...(query.bookingDate || {}), $gte: new Date(dateFrom) };
+    if (dateTo && !query.bookingDate) query.bookingDate = { $lte: new Date(dateTo) };
+    else if (dateTo) query.bookingDate.$lte = new Date(dateTo);
+
+    const bookings = await Booking.find(query)
+      .populate("userId", "name email")
+      .populate("showId", "title theater screen startTime")
+      .sort({ bookingDate: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    // Calculate refunds (e.g., 80% if >24h before show; customize as needed)
+    const bookingsWithRefunds = bookings.map(b => {
+      const showStart = b.showId?.startTime;
+      const hoursBeforeShow = showStart ? (new Date(showStart) - new Date(b.bookingDate)) / (1000 * 60 * 60) : 0;
+      const refundPercentage = hoursBeforeShow > 24 ? 0.8 : 0.5; // 80% if >24h, 50% otherwise
+      return {
+        ...b.toObject(),
+        refundAmount: b.totalPrice * refundPercentage,
+        refundStatus: "Processed" // Tie to a Payment model later
+      };
+    });
+
+    const total = await Booking.countDocuments(query);
+    res.json({ bookings: bookingsWithRefunds, page, limit, total });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// ---------------------------
+// Get ticket history (for Ticket History submenu)
+// ---------------------------
+export const getTicketHistory = async (req, res) => {
+  try {
+    const { userId, status, page = 1, limit = 50, dateFrom, dateTo } = req.query;
+    const query = userId ? { userId } : {};
+    if (status) query.status = status;
+    if (dateFrom) query.bookingDate = { ...(query.bookingDate || {}), $gte: new Date(dateFrom) };
+    if (dateTo && !query.bookingDate) query.bookingDate = { $lte: new Date(dateTo) };
+    else if (dateTo) query.bookingDate.$lte = new Date(dateTo);
+
+    const bookings = await Booking.find(query)
+      .populate("userId", "name email")
+      .populate("showId", "title theater screen startTime seatLayout")
+      .sort({ bookingDate: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    const total = await Booking.countDocuments(query);
+    res.json({ bookings, page, limit, total });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// ---------------------------
+// Get revenue breakdown (for Revenue Breakdown submenu)
+// ---------------------------
+export const getRevenueBreakdown = async (req, res) => {
+  try {
+    const { dateFrom, dateTo, groupBy = "date" } = req.query; // groupBy: "date", "show", "theater"
+    const match = { 
+      status: "Confirmed", 
+      bookingDate: { 
+        $gte: new Date(dateFrom || "2024-01-01"), // Adjusted default to prior year for historical data
+        $lte: new Date(dateTo || new Date()) 
+      } 
+    };
+
+    const pipeline = [
+      { $match: match },
+      { 
+        $lookup: { 
+          from: "shows", 
+          localField: "showId", 
+          foreignField: "_id", 
+          as: "show" 
+        } 
+      },
+      { $unwind: "$show" },
+      {
+        $group: {
+          _id: groupBy === "date" ? { $dateToString: { format: "%Y-%m-%d", date: "$bookingDate" } } :
+                groupBy === "show" ? "$show.title" : "$show.theater",
+          totalRevenue: { $sum: "$totalPrice" },
+          ticketCount: { $sum: { $size: "$seatIds" } },
+          avgPrice: { $avg: "$totalPrice" },
+          bookings: { $push: "$_id" }
+        }
+      },
+      { $sort: { totalRevenue: -1 } }
+    ];
+
+    const revenue = await Booking.aggregate(pipeline);
+    res.json(revenue);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
