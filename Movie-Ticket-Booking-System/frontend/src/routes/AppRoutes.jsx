@@ -30,6 +30,14 @@ import BookingsLayout from '../admin/pages/Bookings'; // New import for bookings
 import ViewCancellationsRefunds from '../admin/components/Bookings/Cancellations'; // TBD: Create this component
 import TicketHistory from '../admin/components/Bookings/History'; // TBD: Create this component
 import RevenueBreakdown from '../admin/components/Bookings/Revenue'; // TBD: Create this component
+import NowShowing from '../pages/NowShowing';
+import Upcoming from '../pages/UpComing';
+import NowShowingAll from '../pages/NowShowingAll';
+import UpcomingAll from '../pages/UpComingAll';
+
+import ContactPage from '../pages/ContactPage';
+
+import Schedule from '../pages/Schedule';
 
 function AppRoutes() {
   return (
@@ -88,6 +96,17 @@ function AppRoutes() {
           {/* Catch-all within /admin/* */}
           <Route path="*" element={<div className="text-gray-800">404 - Page Not Found</div>} />
         </Route>
+        {/* Redirects for legacy/short paths */}
+        <Route path="/now-showing" element={<Navigate to="/movies/now-showing" replace />} />
+        <Route path="/upcoming" element={<Navigate to="/movies/coming-soon" replace />} />
+        <Route path="/movies/now-showing" element={<NowShowing />} />
+        <Route path="/movies/coming-soon" element={<Upcoming />} />
+        <Route path="/movies/now-showing/all" element={<NowShowingAll />} />
+        <Route path="/movies/coming-soon/all" element={<UpcomingAll />} />
+
+        <Route path="/contact" element={<ContactPage />} />
+
+        <Route path="/schedule" element={<Schedule />} />
       </Routes>
     </BrowserRouter>
   );

@@ -1,6 +1,7 @@
 // components/Navbar.jsx - Updated city modal with stylish box-like city options
 // Updated: Changed search navigation to home page with query params (?q=...&city=...) instead of /search
 // Added: Autocomplete dropdown for Trie suggestions (passed as props from HomePage)
+// Updated: Added user dropdown menu when logged in with My Tickets and Logout
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 
@@ -22,8 +23,8 @@ const Navbar = ({ onSearch, suggestions = [] }) => {
       path: '/movies',
       label: 'Movies',
       subItems: [
-        { path: '/movies/now-showing', label: 'Now Showing' },
-        { path: '/movies/coming-soon', label: 'Coming Soon' },
+        { path: '/movies/now-showing/all', label: 'Now Showing' },
+        { path: '/movies/coming-soon/all', label: 'Coming Soon' },
       ],
     },
     { path: '/schedule', label: 'Schedule' },
@@ -179,15 +180,8 @@ const Navbar = ({ onSearch, suggestions = [] }) => {
                   </ul>
                 )}
               </div>
-              {/* Auth/Logout */}
-              {isLoggedIn ? (
-                <button
-                  onClick={handleLogout}
-                  className="text-sm font-medium text-white hover:text-[#d1f2eb] transition-colors"
-                >
-                  Logout
-                </button>
-              ) : (
+              {/* Auth/Logout or User Menu */}
+              {!isLoggedIn ? (
                 <>
                   <Link
                     to="/login"
@@ -202,6 +196,29 @@ const Navbar = ({ onSearch, suggestions = [] }) => {
                     Sign Up
                   </Link>
                 </>
+              ) : (
+                <div className="relative group">
+                  <button
+                    className="px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center text-white hover:text-[#d1f2eb]"
+                  >
+                    <i className="fas fa-user mr-2"></i>
+                    Account
+                  </button>
+                  <div className="absolute top-full right-0 mt-1 bg-gradient-to-r from-[#0f5132] to-[#0d6b20] text-white rounded-lg shadow-lg py-1 z-10 min-w-[150px] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 border border-[#0d6b20]/50">
+                    <Link
+                      to="/my-tickets"
+                      className="block px-4 py-2 text-sm hover:bg-[#0d6b20]/50 hover:text-[#d1f2eb] transition-colors"
+                    >
+                      My Tickets
+                    </Link>
+                    <button
+                      onClick={handleLogout}
+                      className="block w-full text-left px-4 py-2 text-sm hover:bg-[#0d6b20]/50 hover:text-[#d1f2eb] transition-colors"
+                    >
+                      Logout
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
 
@@ -286,35 +303,45 @@ const Navbar = ({ onSearch, suggestions = [] }) => {
                   )}
                 </div>
               </div>
-              {/* Mobile Auth/Logout */}
+              {/* Mobile Auth/Logout or User Menu */}
               <div className="pt-4 pb-3 border-t border-[#0d6b20]/50">
-                <div className="flex flex-col space-y-2 px-3">
-                  {isLoggedIn ? (
-                    <button
-                      onClick={() => {
-                        handleLogout();
-                        setIsMenuOpen(false);
-                      }}
-                      className="text-base font-medium text-white hover:text-[#d1f2eb] transition-colors"
-                    >
-                      Logout
-                    </button>
-                  ) : (
+                <div className="px-3 space-y-2">
+                  {!isLoggedIn ? (
                     <>
                       <Link
                         to="/login"
                         onClick={() => setIsMenuOpen(false)}
-                        className="text-base font-medium text-white hover:text-[#d1f2eb] transition-colors"
+                        className="block text-base font-medium text-white hover:text-[#d1f2eb] transition-colors"
                       >
                         Login
                       </Link>
                       <Link
                         to="/register"
                         onClick={() => setIsMenuOpen(false)}
-                        className="bg-[#d1f2eb] text-[#0f5132] px-4 py-2 rounded-full text-base font-semibold hover:bg-white hover:text-[#0d6b20] transition-all text-center shadow-md"
+                        className="block bg-[#d1f2eb] text-[#0f5132] px-4 py-2 rounded-full text-base font-semibold hover:bg-white hover:text-[#0d6b20] transition-all text-center shadow-md"
                       >
                         Sign Up
                       </Link>
+                    </>
+                  ) : (
+                    <>
+                      <Link
+                        to="/my-tickets"
+                        onClick={() => setIsMenuOpen(false)}
+                        className="block px-3 py-2 text-base font-medium text-white hover:bg-[#0d6b20]/50 hover:text-[#d1f2eb] transition-colors flex items-center"
+                      >
+                        <i className="fas fa-ticket-alt mr-2"></i>
+                        My Tickets
+                      </Link>
+                      <button
+                        onClick={() => {
+                          handleLogout();
+                          setIsMenuOpen(false);
+                        }}
+                        className="block w-full text-left px-3 py-2 text-base font-medium text-white hover:bg-[#0d6b20]/50 hover:text-[#d1f2eb] transition-colors"
+                      >
+                        Logout
+                      </button>
                     </>
                   )}
                 </div>

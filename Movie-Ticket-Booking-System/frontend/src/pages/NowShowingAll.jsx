@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import Navbar from '../components/Navbar';
+import Card from '../components/Card';
 import Footer from '../components/Footer';
 
 // Duplicate the NOW_SHOWING_MOVIES data here for client-side access (in a real app, fetch from API or use context)
@@ -108,13 +109,14 @@ const NOW_SHOWING_MOVIES = [
   }
 ];
 
-const NowShowing = () => {
+const NowShowingAll = () => {
   const [searchParams] = useSearchParams();
   const [movie, setMovie] = useState(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   const movieId = searchParams.get('movieId');
+  const isDetailView = !!movieId;
 
   // Add console logs for debugging
   useEffect(() => {
@@ -131,21 +133,14 @@ const NowShowing = () => {
       } else {
         console.log('Movie not found, showing toast and navigating');
         toast.error('Movie not found!');
-        navigate('/');
+        navigate('/movies/now-showing');
       }
     } else {
-      console.log('No movieId, navigating to home');
-      navigate('/');
+      console.log('No movieId, showing list view');
+      // No redirect for list view
     }
     setLoading(false);
   }, [movieId, navigate]);
-
-  // Static fallback for testing: Uncomment to always show first movie regardless of movieId
-  // useEffect(() => {
-  //   console.log('Using static movie for testing');
-  //   setMovie(NOW_SHOWING_MOVIES[0]);
-  //   setLoading(false);
-  // }, []);
 
   const handleBuyTickets = () => {
     // Placeholder for buy tickets logic (e.g., open modal, redirect to booking, etc.)
@@ -162,88 +157,107 @@ const NowShowing = () => {
     );
   }
 
-  if (!movie) {
-    console.log('Rendering null - no movie');
+  if (isDetailView && !movie) {
+    console.log('Rendering no movie message');
     return (
       <div className="flex justify-center items-center min-h-screen bg-[url('/bgsignup.png')] bg-cover bg-center bg-no-repeat">
-        <div className="text-white text-xl drop-shadow-lg">No movie selected. <button onClick={() => navigate('/')} className="text-green-400 underline">Go to Home</button></div>
+        <div className="text-white text-xl drop-shadow-lg">No movie selected. <button onClick={() => navigate('/movies/now-showing')} className="text-green-400 underline">Go to Now Showing</button></div>
       </div>
-    ); // Changed from return null to show a message for debugging
+    );
   }
 
-  console.log('Rendering movie:', movie.title);
+  console.log('Rendering', isDetailView ? `detail for ${movie?.title}` : 'list view');
 
   return (
     <div className="min-h-screen bg-[url('/bgsignup.png')] bg-cover bg-center bg-no-repeat">
       {/* Navbar */}
       <Navbar />
 
-      {/* Movie Details Content */}
+      {/* Movie Content */}
       <main className="pt-16 p-8">
         <div className="max-w-6xl mx-auto">
-          {/* Back Button */}
-          <button
-            onClick={() => navigate('/')}
-            className="mb-6 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-semibold transition-colors"
-          >
-            ← Back to Home
-          </button>
+          {/* Back Button - Only for detail view */}
+          {isDetailView && (
+            <button
+              onClick={() => navigate('/movies/now-showing')}
+              className="mb-6 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-semibold transition-colors"
+            >
+              ← Back to Now Showing
+            </button>
+          )}
 
-          {/* Movie Hero Section */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-            <div className="relative">
-              <img
-                src={movie.image}
-                alt={movie.title}
-                className="w-full h-96 object-cover rounded-lg shadow-lg"
-                onError={(e) => {
-                  e.target.src = 'https://picsum.photos/400/600?random=0';
-                  console.log('Image load error, fallback used');
-                }}
-              />
-            </div>
-            <div className="text-white space-y-4">
-              <h1 className="text-4xl font-bold drop-shadow-lg">{movie.title}</h1>
-              <div className="space-y-2">
-                <p className="text-lg"><span className="font-semibold">Release Date:</span> {movie.date}</p>
-                <p className="text-lg"><span className="font-semibold">Language:</span> {movie.language}</p>
-                <p className="text-lg"><span className="font-semibold">Genre:</span> {movie.genre}</p>
+          {/* Detail View */}
+          {isDetailView && movie && (
+            <>
+              {/* Movie Hero Section */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                <div className="relative">
+                  <img
+                    src={movie.image}
+                    alt={movie.title}
+                    className="w-full h-96 object-cover rounded-lg shadow-lg"
+                    onError={(e) => {
+                      e.target.src = 'https://picsum.photos/400/600?random=0';
+                      console.log('Image load error, fallback used');
+                    }}
+                  />
+                </div>
+                <div className="text-white space-y-4">
+                  <h1 className="text-4xl font-bold drop-shadow-lg">{movie.title}</h1>
+                  <div className="space-y-2">
+                    <p className="text-lg"><span className="font-semibold">Release Date:</span> {movie.date}</p>
+                    <p className="text-lg"><span className="font-semibold">Language:</span> {movie.language}</p>
+                    <p className="text-lg"><span className="font-semibold">Genre:</span> {movie.genre}</p>
+                  </div>
+                  <p className="text-lg drop-shadow-lg">{movie.synopsis}</p>
+                  <button
+                    onClick={handleBuyTickets}
+                    className="w-full bg-green-600 hover:bg-green-700 text-white py-3 px-6 rounded-md text-lg font-semibold transition-colors"
+                  >
+                    Buy Tickets
+                  </button>
+                </div>
               </div>
-              <p className="text-lg drop-shadow-lg">{movie.synopsis}</p>
-              <button
-                onClick={handleBuyTickets}
-                className="w-full bg-green-600 hover:bg-green-700 text-white py-3 px-6 rounded-md text-lg font-semibold transition-colors"
-              >
-                Buy Tickets
-              </button>
-            </div>
-          </div>
 
-          {/* Additional Sections (e.g., Showtimes, Cast - placeholders) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 text-white">
-              <h3 className="text-xl font-bold mb-4">Showtimes</h3>
-              <ul className="space-y-2">
-                <li>10:00 AM - Kathmandu Cineplex</li>
-                <li>1:00 PM - Big Cinema</li>
-                <li>4:00 PM - Roxy Theatre</li>
-                <li>7:00 PM - Kathmandu Cineplex</li>
-              </ul>
+              {/* Additional Sections (e.g., Showtimes, Cast - placeholders) */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 text-white">
+                  <h3 className="text-xl font-bold mb-4">Showtimes</h3>
+                  <ul className="space-y-2">
+                    <li>10:00 AM - Kathmandu Cineplex</li>
+                    <li>1:00 PM - Big Cinema</li>
+                    <li>4:00 PM - Roxy Theatre</li>
+                    <li>7:00 PM - Kathmandu Cineplex</li>
+                  </ul>
+                </div>
+                <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 text-white">
+                  <h3 className="text-xl font-bold mb-4">Cast & Crew</h3>
+                  <ul className="space-y-1 text-sm">
+                    <li>Director: John Doe</li>
+                    <li>Lead Actor: Jane Smith</li>
+                    <li>Supporting: Bob Johnson</li>
+                  </ul>
+                </div>
+                <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 text-white">
+                  <h3 className="text-xl font-bold mb-4">Ratings</h3>
+                  <p className="text-2xl font-bold">★★★★☆ (4.2/5)</p>
+                  <p className="text-sm opacity-75">Based on 1,234 reviews</p>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* List View */}
+          {!isDetailView && (
+            <div>
+              <h2 className="text-2xl font-bold text-white mb-6 drop-shadow-lg">Now Showing in Cinemas</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                {NOW_SHOWING_MOVIES.map((movieItem) => (
+                  <Card key={movieItem.id} movie={movieItem} />
+                ))}
+              </div>
             </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 text-white">
-              <h3 className="text-xl font-bold mb-4">Cast & Crew</h3>
-              <ul className="space-y-1 text-sm">
-                <li>Director: John Doe</li>
-                <li>Lead Actor: Jane Smith</li>
-                <li>Supporting: Bob Johnson</li>
-              </ul>
-            </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 text-white">
-              <h3 className="text-xl font-bold mb-4">Ratings</h3>
-              <p className="text-2xl font-bold">★★★★☆ (4.2/5)</p>
-              <p className="text-sm opacity-75">Based on 1,234 reviews</p>
-            </div>
-          </div>
+          )}
         </div>
       </main>
       <Footer />
@@ -251,4 +265,4 @@ const NowShowing = () => {
   );
 };
 
-export default NowShowing;
+export default NowShowingAll;
