@@ -39,6 +39,8 @@ import ContactPage from '../pages/ContactPage';
 
 import Schedule from '../pages/Schedule';
 
+import MyTickets from '../pages/MyTickets';
+
 function AppRoutes() {
   return (
     <BrowserRouter>
@@ -107,6 +109,8 @@ function AppRoutes() {
         <Route path="/contact" element={<ContactPage />} />
 
         <Route path="/schedule" element={<Schedule />} />
+
+        <Route path="/my-tickets" element={<MyTickets />} />
       </Routes>
     </BrowserRouter>
   );

@@ -108,50 +108,133 @@ const NOW_SHOWING_MOVIES = [
   }
 ];
 
+// Mock data for booking flow (in real app, fetch from API based on movie/date/cinema/etc.)
+const MOCK_BOOKING_DATA = {
+  dates: ['Today', 'Tomorrow', 'Kartik 29 | 7 NOV', 'November 21', 'Kartik 15 | 31 OCT'], // Example dates
+  cinemas: [
+    { id: 1, name: 'Kathmandu Cineplex', location: 'Kathmandu' },
+    { id: 2, name: 'Big Cinema', location: 'Lalitpur' },
+    { id: 3, name: 'Roxy Theatre', location: 'Pokhara' }
+  ],
+  languages: [
+    { id: 1, name: 'Nepali (Original)', code: 'np' },
+    { id: 2, name: 'English (Subtitled)', code: 'en-sub' },
+    { id: 3, name: 'Hindi Dubbed', code: 'hi-dub' }
+  ],
+  times: { // Mock times per cinema/language combo
+    'Kathmandu Cineplex': { 'np': ['10:00 AM', '1:00 PM', '4:00 PM', '7:00 PM'], 'en-sub': ['11:00 AM', '2:00 PM', '5:00 PM', '8:00 PM'], 'hi-dub': ['12:00 PM', '3:00 PM', '6:00 PM'] },
+    'Big Cinema': { 'np': ['9:30 AM', '12:30 PM', '3:30 PM', '6:30 PM'], 'en-sub': ['10:30 AM', '1:30 PM', '4:30 PM', '7:30 PM'], 'hi-dub': ['11:30 AM', '2:30 PM', '5:30 PM'] },
+    'Roxy Theatre': { 'np': ['11:00 AM', '2:00 PM', '5:00 PM'], 'en-sub': ['12:00 PM', '3:00 PM', '6:00 PM'], 'hi-dub': ['1:00 PM', '4:00 PM', '7:00 PM'] }
+  },
+  seats: [ // Mock 5x5 seat grid, 0=available, 1=booked
+    [0, 0, 1, 0, 0],
+    [0, 1, 0, 0, 0],
+    [1, 0, 0, 1, 0],
+    [0, 0, 0, 0, 1],
+    [0, 0, 1, 0, 0]
+  ]
+};
+
+const STEPS = ['Date', 'Cinema', 'Language', 'Time', 'Seats', 'Complete'];
+
 const NowShowing = () => {
   const [searchParams] = useSearchParams();
   const [movie, setMovie] = useState(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
+  // Booking states
+  const [currentStep, setCurrentStep] = useState(0); // Start with 0 to show form by default
+  const [selectedDate, setSelectedDate] = useState('');
+  const [selectedCinema, setSelectedCinema] = useState('');
+  const [selectedLanguage, setSelectedLanguage] = useState('');
+  const [selectedTime, setSelectedTime] = useState('');
+  const [selectedSeats, setSelectedSeats] = useState([]);
+  const [totalPrice, setTotalPrice] = useState(0);
+
   const movieId = searchParams.get('movieId');
 
-  // Add console logs for debugging
   useEffect(() => {
-    console.log('NowShowing mounted, movieId:', movieId);
-    console.log('Available movies:', NOW_SHOWING_MOVIES.map(m => m.id));
-
     if (movieId) {
       const parsedId = parseInt(movieId);
-      console.log('Parsed ID:', parsedId);
       const foundMovie = NOW_SHOWING_MOVIES.find(m => m.id === parsedId);
-      console.log('Found movie:', foundMovie ? foundMovie.title : 'Not found');
       if (foundMovie) {
         setMovie(foundMovie);
       } else {
-        console.log('Movie not found, showing toast and navigating');
         toast.error('Movie not found!');
         navigate('/');
       }
     } else {
-      console.log('No movieId, navigating to home');
       navigate('/');
     }
     setLoading(false);
   }, [movieId, navigate]);
 
-  // Static fallback for testing: Uncomment to always show first movie regardless of movieId
-  // useEffect(() => {
-  //   console.log('Using static movie for testing');
-  //   setMovie(NOW_SHOWING_MOVIES[0]);
-  //   setLoading(false);
-  // }, []);
+  const nextStep = () => {
+    if (currentStep < STEPS.length - 1) {
+      setCurrentStep(prev => prev + 1);
+    }
+  };
 
-  const handleBuyTickets = () => {
-    // Placeholder for buy tickets logic (e.g., open modal, redirect to booking, etc.)
-    // In a real app, this could integrate with a booking system
-    toast.info('Redirecting to booking... (Client-side demo)');
-    // Example: navigate('/booking?movieId=' + movie.id);
+  const prevStep = () => {
+    if (currentStep > 0) {
+      setCurrentStep(prev => prev - 1);
+    }
+  };
+
+  const selectDate = (date) => {
+    setSelectedDate(date);
+    nextStep();
+  };
+
+  const selectCinema = (cinema) => {
+    setSelectedCinema(cinema);
+    nextStep();
+  };
+
+  const selectLanguage = (lang) => {
+    setSelectedLanguage(lang);
+    nextStep();
+  };
+
+  const selectTime = (time) => {
+    setSelectedTime(time);
+    nextStep();
+  };
+
+  const toggleSeat = (row, col) => {
+    const seatId = `${row}-${col}`;
+    const seatIndex = selectedSeats.findIndex(s => s === seatId);
+    if (seatIndex !== -1) {
+      setSelectedSeats(prev => prev.filter((_, idx) => idx !== seatIndex));
+    } else if (selectedSeats.length < 10) {
+      setSelectedSeats(prev => [...prev, seatId]);
+    } else {
+      toast.warn('Maximum 10 seats allowed.');
+    }
+  };
+
+  const completeBooking = () => {
+    if (selectedSeats.length === 0) {
+      toast.error('Please select at least one seat.');
+      return;
+    }
+    const pricePerSeat = 500; // Mock price
+    const total = selectedSeats.length * pricePerSeat;
+    setTotalPrice(total);
+    // Save to localStorage for MyTickets
+    const booking = {
+      movie: movie.title,
+      date: selectedDate,
+      cinema: selectedCinema,
+      language: selectedLanguage,
+      time: selectedTime,
+      seats: selectedSeats,
+      total
+    };
+    localStorage.setItem('latestBooking', JSON.stringify(booking));
+    toast.success(`Booking confirmed! Total: NPR ${total}. Check My Tickets.`);
+    setCurrentStep(5);
   };
 
   if (loading) {
@@ -163,15 +246,12 @@ const NowShowing = () => {
   }
 
   if (!movie) {
-    console.log('Rendering null - no movie');
     return (
       <div className="flex justify-center items-center min-h-screen bg-[url('/bgsignup.png')] bg-cover bg-center bg-no-repeat">
         <div className="text-white text-xl drop-shadow-lg">No movie selected. <button onClick={() => navigate('/')} className="text-green-400 underline">Go to Home</button></div>
       </div>
-    ); // Changed from return null to show a message for debugging
+    );
   }
-
-  console.log('Rendering movie:', movie.title);
 
   return (
     <div className="min-h-screen bg-[url('/bgsignup.png')] bg-cover bg-center bg-no-repeat">
@@ -198,7 +278,6 @@ const NowShowing = () => {
                 className="w-full h-96 object-cover rounded-lg shadow-lg"
                 onError={(e) => {
                   e.target.src = 'https://picsum.photos/400/600?random=0';
-                  console.log('Image load error, fallback used');
                 }}
               />
             </div>
@@ -210,12 +289,199 @@ const NowShowing = () => {
                 <p className="text-lg"><span className="font-semibold">Genre:</span> {movie.genre}</p>
               </div>
               <p className="text-lg drop-shadow-lg">{movie.synopsis}</p>
-              <button
-                onClick={handleBuyTickets}
-                className="w-full bg-green-600 hover:bg-green-700 text-white py-3 px-6 rounded-md text-lg font-semibold transition-colors"
-              >
-                Buy Tickets
-              </button>
+            </div>
+          </div>
+
+          {/* Booking Flow - Shown by default */}
+          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-8 mb-8">
+            {/* Progress Bar */}
+            <div className="flex justify-between mb-8 text-white text-sm font-semibold">
+              {STEPS.map((step, idx) => (
+                <div key={idx} className={`flex-1 text-center ${
+                  idx < currentStep ? 'text-green-400' : idx === currentStep ? 'text-green-600' : 'text-gray-400'
+                }`}>
+                  {step}
+                  {idx < STEPS.length - 1 && <span className="mx-2">&gt;</span>}
+                </div>
+              ))}
+            </div>
+
+            {/* Step Content */}
+            <div className="text-white">
+              {/* Step 0: Select Date */}
+              {currentStep === 0 && (
+                <div>
+                  <h3 className="text-xl font-semibold mb-4">Select Date</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                    {MOCK_BOOKING_DATA.dates.map((date, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => selectDate(date)}
+                        className={`p-4 rounded-lg border-2 transition-colors ${
+                          selectedDate === date
+                            ? 'bg-green-600 border-green-600 text-white'
+                            : 'bg-transparent border-white/50 hover:border-green-400'
+                        }`}
+                      >
+                        {date}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Step 1: Select Cinema */}
+              {currentStep === 1 && (
+                <div>
+                  <h3 className="text-xl font-semibold mb-4">Select Cinema</h3>
+                  <div className="space-y-3">
+                    {MOCK_BOOKING_DATA.cinemas.map((cinema) => (
+                      <button
+                        key={cinema.id}
+                        onClick={() => selectCinema(cinema.name)}
+                        className={`w-full p-4 text-left rounded-lg border-2 transition-colors ${
+                          selectedCinema === cinema.name
+                            ? 'bg-green-600 border-green-600 text-white'
+                            : 'bg-transparent border-white/50 hover:border-green-400'
+                        }`}
+                      >
+                        <div className="font-semibold">{cinema.name}</div>
+                        <div className="text-sm opacity-75">{cinema.location}</div>
+                      </button>
+                    ))}
+                  </div>
+                  <button onClick={prevStep} className="mt-4 text-green-400 underline">← Back</button>
+                </div>
+              )}
+
+              {/* Step 2: Select Language/Version */}
+              {currentStep === 2 && (
+                <div>
+                  <h3 className="text-xl font-semibold mb-4">Select Language/Version</h3>
+                  <div className="space-y-3">
+                    {MOCK_BOOKING_DATA.languages.map((lang) => (
+                      <button
+                        key={lang.id}
+                        onClick={() => selectLanguage(lang.name)}
+                        className={`w-full p-4 text-left rounded-lg border-2 transition-colors ${
+                          selectedLanguage === lang.name
+                            ? 'bg-green-600 border-green-600 text-white'
+                            : 'bg-transparent border-white/50 hover:border-green-400'
+                        }`}
+                      >
+                        {lang.name}
+                      </button>
+                    ))}
+                  </div>
+                  <button onClick={prevStep} className="mt-4 text-green-400 underline">← Back</button>
+                </div>
+              )}
+
+              {/* Step 3: Select Time */}
+              {currentStep === 3 && selectedCinema && selectedLanguage && (
+                <div>
+                  <h3 className="text-xl font-semibold mb-4">Select Showtime</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {MOCK_BOOKING_DATA.times[selectedCinema]?.[selectedLanguage.split(' (')[0].toLowerCase().replace(' ', '-')]?.map((time, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => selectTime(time)}
+                        className={`p-3 rounded-lg border-2 transition-colors ${
+                          selectedTime === time
+                            ? 'bg-green-600 border-green-600 text-white'
+                            : 'bg-transparent border-white/50 hover:border-green-400'
+                        }`}
+                      >
+                        {time}
+                      </button>
+                    ))}
+                  </div>
+                  <button onClick={prevStep} className="mt-4 text-green-400 underline">← Back</button>
+                </div>
+              )}
+
+              {/* Step 4: Select Seats */}
+              {currentStep === 4 && selectedTime && (
+                <div>
+                  <h3 className="text-xl font-semibold mb-4">Select Seats (Max 10)</h3>
+                  <div className="mb-4">
+                    <p className="text-sm opacity-75 mb-2">Selected: {selectedSeats.length} seats</p>
+                    <div className="grid grid-cols-5 gap-1 bg-gray-800 p-4 rounded-lg max-w-xs mx-auto">
+                      {MOCK_BOOKING_DATA.seats.map((row, rowIdx) =>
+                        row.map((seat, colIdx) => {
+                          const seatId = `${rowIdx}-${colIdx}`;
+                          const isSelected = selectedSeats.includes(seatId);
+                          const isBooked = seat === 1;
+                          return (
+                            <button
+                              key={seatId}
+                              onClick={() => !isBooked && toggleSeat(rowIdx, colIdx)}
+                              disabled={isBooked}
+                              className={`w-8 h-8 rounded flex items-center justify-center text-xs font-bold transition-colors ${
+                                isBooked
+                                  ? 'bg-gray-600 cursor-not-allowed'
+                                  : isSelected
+                                  ? 'bg-green-600 text-white'
+                                  : 'bg-gray-700 hover:bg-gray-600 text-white'
+                              }`}
+                            >
+                              {String.fromCharCode(65 + rowIdx)}{colIdx + 1}
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    onClick={completeBooking}
+                    disabled={selectedSeats.length === 0}
+                    className={`w-full py-3 px-6 rounded-md text-lg font-semibold transition-colors ${
+                      selectedSeats.length === 0
+                        ? 'bg-gray-600 cursor-not-allowed'
+                        : 'bg-green-600 hover:bg-green-700'
+                    } text-white`}
+                  >
+                    Proceed to Payment (NPR {selectedSeats.length * 500})
+                  </button>
+                  <button onClick={prevStep} className="mt-4 text-green-400 underline">← Back</button>
+                </div>
+              )}
+
+              {/* Step 5: Complete */}
+              {currentStep === 5 && (
+                <div className="text-center text-white">
+                  <h3 className="text-xl font-semibold mb-4">Booking Complete!</h3>
+                  <p className="mb-4">Your tickets have been added to My Tickets.</p>
+                  <div className="space-y-2 text-sm opacity-75 mb-6">
+                    <p><strong>Date:</strong> {selectedDate}</p>
+                    <p><strong>Cinema:</strong> {selectedCinema}</p>
+                    <p><strong>Language:</strong> {selectedLanguage}</p>
+                    <p><strong>Time:</strong> {selectedTime}</p>
+                    <p><strong>Seats:</strong> {selectedSeats.join(', ')}</p>
+                    <p><strong>Total:</strong> NPR {totalPrice}</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setCurrentStep(0);
+                      setSelectedDate('');
+                      setSelectedCinema('');
+                      setSelectedLanguage('');
+                      setSelectedTime('');
+                      setSelectedSeats([]);
+                      setTotalPrice(0);
+                    }}
+                    className="bg-green-600 hover:bg-green-700 text-white py-3 px-6 rounded-md font-semibold transition-colors"
+                  >
+                    Book Another
+                  </button>
+                  <button
+                    onClick={() => navigate('/my-tickets')}
+                    className="ml-4 bg-blue-600 hover:bg-blue-700 text-white py-3 px-6 rounded-md font-semibold transition-colors"
+                  >
+                    View My Tickets
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
