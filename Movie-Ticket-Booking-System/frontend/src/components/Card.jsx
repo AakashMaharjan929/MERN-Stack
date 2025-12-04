@@ -1,36 +1,41 @@
 // components/MovieCard.jsx
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 const Card = ({ movie }) => {
   const [imageSrc, setImageSrc] = useState(movie.image);
   const navigate = useNavigate();
+
   const handleImageError = () => {
     setImageSrc('https://picsum.photos/400/600?random=0');
   };
 
-  const handleBuyTickets = (e) => {
-    e.preventDefault(); // Prevent Link navigation if wrapped
-    // Updated to navigate to movie details page instead of booking for testing
-    const detailsPath = movie.tag === 'Now Showing' 
-      ? `/movies/now-showing?movieId=${movie.id}` 
-      : movie.tag === 'Upcoming' 
-      ? `/movies/coming-soon?movieId=${movie.id}` 
+  const handleBuyTickets = () => {
+    const path = movie.tag === 'Now Showing'
+      ? `/movies/now-showing?movieId=${movie.id}`
+      : movie.tag === 'Upcoming'
+      ? `/movies/coming-soon?movieId=${movie.id}`
       : `/movies/${movie.id}`;
+
+    navigate(path);
+  };
+
+  const handleCardClick = (e) => {
+    // If clicked on the Buy Tickets button or its children, don't navigate to details
+    if (e.target.closest('button')) return;
+
+    // Otherwise, go to movie details (optional)
+    const detailsPath = movie.tag === 'Now Showing'
+      ? `/movies/now-showing?movieId=${movie.id}`
+      : `/movies/coming-soon?movieId=${movie.id}`;
     navigate(detailsPath);
   };
 
-  const getDetailsPath = () => {
-    if (movie.tag === 'Now Showing') {
-      return `/movies/now-showing?movieId=${movie.id}`;
-    } else if (movie.tag === 'Upcoming') {
-      return `/movies/coming-soon?movieId=${movie.id}`;
-    }
-    return `/movies/${movie.id}`; // Fallback
-  };
-
   return (
-    <div className="relative w-64 mx-auto group">
+    <div
+      className="relative w-64 mx-auto group cursor-pointer"
+      onClick={handleCardClick} // Click anywhere → go to details
+    >
       {/* Outer ticket shape */}
       <div
         className="relative bg-white shadow-xl overflow-hidden group-hover:shadow-2xl transition-all duration-300"
@@ -65,58 +70,45 @@ const Card = ({ movie }) => {
           loading="eager"
         />
 
-        {/* Hover Buy Tickets overlay - Now navigates to details */}
+        {/* Hover Buy Tickets Button */}
         <button
-          onClick={handleBuyTickets}
-          className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 z-20 transition-all duration-300 bg-transparent border-0 cursor-pointer"
+          onClick={(e) => {
+            e.stopPropagation(); // Prevent card click
+            handleBuyTickets();
+          }}
+          className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 z-20 transition-all duration-300 bg-black/40 backdrop-blur-sm"
         >
-          <div className="bg-white/90 backdrop-blur-md text-green-900 py-3 px-6 rounded-full text-sm font-bold shadow-lg hover:bg-white hover:scale-105 transition-all duration-200">
+          <div className="bg-white text-green-900 py-4 px-8 rounded-full text-lg font-bold shadow-2xl hover:scale-110 transition-all duration-200 border-4 border-green-900">
             Buy Tickets
           </div>
         </button>
 
-        {/* Optional: Separate link for details if needed, e.g., click on image */}
-        <Link
-          to={getDetailsPath()}
-          className="absolute inset-0 z-10"
-          onClick={(e) => {
-            // If clicking near the button, don't navigate to details
-            const button = e.currentTarget.querySelector('button');
-            if (button && button.contains(e.target)) {
-              e.preventDefault();
-            }
-          }}
-        />
-
         {/* Bottom info section */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 text-white z-10 bg-gradient-to-t from-green-900 via-green-800 to-green-700">
-          {/* Perforated effect line */}
+        <div className="absolute bottom-0 left-0 right-0 p-6 text-white z-10 bg-gradient-to-t from-black via-black/80 to-transparent">
           <div
             className="absolute top-0 left-0 right-0 h-px bg-white/60"
             style={{
               backgroundImage:
                 'repeating-linear-gradient(90deg, transparent, transparent 3px, white 3px, white 6px)',
             }}
-          ></div>
+          />
 
-          {/* Movie title */}
-          <h3 className="text-lg font-bold text-center mb-1">
+          <h3 className="text-xl font-bold text-center mb-2 tracking-wider">
             {movie.title}
           </h3>
 
-          {/* Language and genre */}
-          <div className="flex justify-center items-center space-x-1 text-sm opacity-80">
-            <span>{movie.language || 'Nepali'}</span>
-            <span>|</span>
-            <span>{movie.genre || 'Drama'}</span>
+          <div className="flex justify-center items-center gap-3 text-sm opacity-90">
+            <span className="bg-white/20 px-3 py-1 rounded-full">{movie.language || 'Nepali'}</span>
+            <span className="text-white/70">•</span>
+            <span className="bg-white/20 px-3 py-1 rounded-full">{movie.genre || 'Drama'}</span>
           </div>
         </div>
       </div>
 
-      {/* “Advance” label at the top - only for Upcoming */}
+      {/* Advance Label */}
       {movie.tag === 'Upcoming' && (
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 bg-cyan-700 text-white px-3 py-1 text-xs font-semibold rounded-b-md shadow-md">
-          Advance
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-cyan-600 text-white px-4 py-2 text-sm font-bold rounded-full shadow-lg animate-pulse">
+          Advance Booking
         </div>
       )}
     </div>

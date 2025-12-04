@@ -4,514 +4,373 @@ import { toast } from 'react-toastify';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 
-// Duplicate the NOW_SHOWING_MOVIES data here for client-side access (in a real app, fetch from API or use context)
+// UPDATED: Now with separate poster & banner
 const NOW_SHOWING_MOVIES = [
-  {
-    id: 1,
-    title: "जारि२",
-    tag: "Now Showing",
-    date: "Kartik 29 | 7 NOV",
-    image: "https://picsum.photos/300/400?random=1",
-    language: "Nepali",
-    genre: "Thriller",
-    synopsis: "A thrilling sequel to the blockbuster Jaari."
+  { 
+    id: 1, 
+    title: "जारि२", 
+    language: "Nepali", 
+    genre: "Thriller", 
+    poster: "https://picsum.photos/400/600?random=1",   // ← Vertical Poster
+    banner: "https://picsum.photos/1600/900?random=1",  // ← Wide Banner
+    synopsis: "The thrilling sequel to the blockbuster Jaari returns with higher stakes, deeper emotions, and intense action in the hills of Nepal.",
+    cast: [
+      { name: "Dayahang Rai", role: "Lead Actor" },
+      { name: "Miruna Magar", role: "Lead Actress" },
+      { name: "Bipin Karki", role: "Supporting" }
+    ],
+    director: "Upendra Subba"
   },
-  {
-    id: 2,
-    title: "Wicked 2: For Good",
-    tag: "Now Showing",
-    date: "November 21",
-    image: "https://picsum.photos/300/400?random=2",
-    language: "English",
-    genre: "Fantasy Musical",
-    synopsis: "The magical journey continues in this epic tale."
+  { 
+    id: 2, 
+    title: "Wicked 2: For Good", 
+    language: "English", 
+    genre: "Fantasy Musical", 
+    poster: "https://picsum.photos/400/600?random=2",
+    banner: "https://picsum.photos/1600/900?random=2",
+    synopsis: "Elphaba and Glinda's story continues in this breathtaking musical spectacle about friendship, destiny, and defying gravity.",
+    cast: [
+      { name: "Cynthia Erivo", role: "Elphaba" },
+      { name: "Ariana Grande", role: "Glinda" },
+      { name: "Jonathan Bailey", role: "Fiyero" }
+    ],
+    director: "Jon M. Chu"
   },
-  {
-    id: 3,
-    title: "माया",
-    tag: "Now Showing",
-    date: "Kartik 15 | 31 OCT",
-    image: "https://picsum.photos/300/400?random=5",
-    language: "Nepali",
-    genre: "Romance",
-    synopsis: "A heartfelt story of love and loss in the Himalayas."
+  { 
+    id: 3, 
+    title: "माया", 
+    language: "Nepali", 
+    genre: "Romance", 
+    poster: "https://picsum.photos/400/600?random=5",
+    banner: "https://picsum.photos/1600/900?random=5",
+    synopsis: "A heartfelt journey of love, loss, and second chances set against the breathtaking Himalayan backdrop.",
+    cast: [
+      { name: "Anmol K.C.", role: "Lead Actor" },
+      { name: "Aditi Budhathoki", role: "Lead Actress" }
+    ],
+    director: "Ramesh K.C."
   },
-  {
-    id: 4,
-    title: "Deadpool & Wolverine",
-    tag: "Now Showing",
-    date: "October 10",
-    image: "https://picsum.photos/300/400?random=6",
-    language: "English",
-    genre: "Action Comedy",
-    synopsis: "The Merc with a Mouth teams up with the Clawed Mutant."
+  { 
+    id: 4, 
+    title: "Deadpool & Wolverine", 
+    language: "English", 
+    genre: "Action Comedy", 
+    poster: "https://picsum.photos/400/600?random=6",
+    banner: "https://picsum.photos/1600/900?random=6",
+    synopsis: "The Merc with a Mouth teams up with the clawed mutant in the most chaotic, fourth-wall-breaking adventure yet.",
+    cast: [
+      { name: "Ryan Reynolds", role: "Deadpool" },
+      { name: "Hugh Jackman", role: "Wolverine" },
+      { name: "Emma Corrin", role: "Villain" }
+    ],
+    director: "Shawn Levy"
   },
-  {
-    id: 5,
-    title: "काला",
-    tag: "Now Showing",
-    date: "November 5",
-    image: "https://picsum.photos/300/400?random=7",
-    language: "Nepali",
-    genre: "Action",
-    synopsis: "A tale of revenge and redemption in rural Nepal."
-  },
-  {
-    id: 11,
-    title: "The Enchanted Forest",
-    tag: "Now Showing",
-    date: "November 12",
-    image: "https://picsum.photos/300/400?random=11",
-    language: "English",
-    genre: "Fantasy",
-    synopsis: "A magical journey through an enchanted forest."
-  },
-  {
-    id: 12,
-    title: "दिलको कुरा",
-    tag: "Now Showing",
-    date: "Mangsir 1 | 17 NOV",
-    image: "https://picsum.photos/300/400?random=12",
-    language: "Nepali",
-    genre: "Drama",
-    synopsis: "A touching story about family and relationships."
-  },
-  {
-    id: 13,
-    title: "Space Odyssey",
-    tag: "Now Showing",
-    date: "December 1",
-    image: "https://picsum.photos/300/400?random=13",
-    language: "English",
-    genre: "Sci-Fi",
-    synopsis: "An epic adventure through space and time."
-  },
-  {
-    id: 14,
-    title: "सपनाको शहर",
-    tag: "Now Showing",
-    date: "Poush 5 | 20 DEC",
-    image: "https://picsum.photos/300/400?random=14",
-    language: "Nepali",
-    genre: "Romance",
-    synopsis: "A romantic tale set in the bustling city of Kathmandu."
-  },
-  {
-    id: 15,
-    title: "The Last Samurai",
-    tag: "Now Showing",
-    date: "November 25",
-    image: "https://picsum.photos/300/400?random=15",
-    language: "English",
-    genre: "Action Drama",
-    synopsis: "A warrior's journey in feudal Japan."
+  { 
+    id: 5, 
+    title: "काला", 
+    language: "Nepali", 
+    genre: "Action", 
+    poster: "https://picsum.photos/400/600?random=7",
+    banner: "https://picsum.photos/1600/900?random=7",
+    synopsis: "A tale of revenge, redemption, and raw power in the gritty underbelly of rural Nepal.",
+    cast: [
+      { name: "Nischal Basnet", role: "Lead Actor" },
+      { name: "Saubin Shah", role: "Supporting" }
+    ],
+    director: "Nischal Basnet"
   }
 ];
 
-// Mock data for booking flow (in real app, fetch from API based on movie/date/cinema/etc.)
-const MOCK_BOOKING_DATA = {
-  dates: ['Today', 'Tomorrow', 'Kartik 29 | 7 NOV', 'November 21', 'Kartik 15 | 31 OCT'], // Example dates
-  cinemas: [
-    { id: 1, name: 'Kathmandu Cineplex', location: 'Kathmandu' },
-    { id: 2, name: 'Big Cinema', location: 'Lalitpur' },
-    { id: 3, name: 'Roxy Theatre', location: 'Pokhara' }
-  ],
-  languages: [
-    { id: 1, name: 'Nepali (Original)', code: 'np' },
-    { id: 2, name: 'English (Subtitled)', code: 'en-sub' },
-    { id: 3, name: 'Hindi Dubbed', code: 'hi-dub' }
-  ],
-  times: { // Mock times per cinema/language combo
-    'Kathmandu Cineplex': { 'np': ['10:00 AM', '1:00 PM', '4:00 PM', '7:00 PM'], 'en-sub': ['11:00 AM', '2:00 PM', '5:00 PM', '8:00 PM'], 'hi-dub': ['12:00 PM', '3:00 PM', '6:00 PM'] },
-    'Big Cinema': { 'np': ['9:30 AM', '12:30 PM', '3:30 PM', '6:30 PM'], 'en-sub': ['10:30 AM', '1:30 PM', '4:30 PM', '7:30 PM'], 'hi-dub': ['11:30 AM', '2:30 PM', '5:30 PM'] },
-    'Roxy Theatre': { 'np': ['11:00 AM', '2:00 PM', '5:00 PM'], 'en-sub': ['12:00 PM', '3:00 PM', '6:00 PM'], 'hi-dub': ['1:00 PM', '4:00 PM', '7:00 PM'] }
-  },
-  seats: [ // Mock 5x5 seat grid, 0=available, 1=booked
-    [0, 0, 1, 0, 0],
-    [0, 1, 0, 0, 0],
-    [1, 0, 0, 1, 0],
-    [0, 0, 0, 0, 1],
-    [0, 0, 1, 0, 0]
-  ]
+// ... rest of your MOCK_SHOWTIMES, CITIES, LANGUAGES, getDates() remain unchanged
+const MOCK_SHOWTIMES = {
+  "Kathmandu": {
+    "जारि२": {
+      "Kathmandu Cineplex": { "Nepali": ["10:00 AM", "1:15 PM", "4:30 PM", "7:45 PM"], seatsLeft: [120, 45, 12, 8] },
+      "Big Cinema": { "Nepali": ["11:30 AM", "2:45 PM", "6:00 PM"], seatsLeft: [90, 30, 5] },
+      "QFX Kumari": { "Nepali": ["9:45 AM", "3:00 PM", "8:15 PM"], seatsLeft: [110, 60, 15] }
+    },
+    "Wicked 2: For Good": {
+      "Kathmandu Cineplex": { "English": ["12:00 PM", "3:30 PM", "9:00 PM"], "English 3D": ["6:00 PM"], seatsLeft: [80, 40, 20, 3] },
+      "Big Cinema": { "English": ["1:00 PM", "5:30 PM"], seatsLeft: [70, 25] }
+    }
+  }
 };
 
-const STEPS = ['Date', 'Cinema', 'Language', 'Time', 'Seats', 'Complete'];
+const CITIES = ["Kathmandu", "Pokhara", "Lalitpur", "Biratnagar", "Chitwan"];
+const LANGUAGES = ["Nepali", "English", "Hindi", "English 3D", "IMAX"];
+
+const getDates = () => {
+  const dates = [];
+  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const today = new Date();
+  for (let i = 0; i < 10; i++) {
+    const date = new Date(today);
+    date.setDate(today.getDate() + i);
+    const label = i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : `${days[date.getDay()]} ${date.getDate()} ${months[date.getMonth()]}`;
+    dates.push({ date: date.toISOString().split('T')[0], label });
+  }
+  return dates;
+};
 
 const NowShowing = () => {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const movieId = searchParams.get('movieId');
   const [movie, setMovie] = useState(null);
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
 
-  // Booking states
-  const [currentStep, setCurrentStep] = useState(0); // Start with 0 to show form by default
-  const [selectedDate, setSelectedDate] = useState('');
-  const [selectedCinema, setSelectedCinema] = useState('');
-  const [selectedLanguage, setSelectedLanguage] = useState('');
-  const [selectedTime, setSelectedTime] = useState('');
+  const [selectedCity, setSelectedCity] = useState("Kathmandu");
+  const [selectedDate, setSelectedDate] = useState(getDates()[0]);
+  const [selectedLanguage, setSelectedLanguage] = useState("all");
+  const [selectedShow, setSelectedShow] = useState(null);
   const [selectedSeats, setSelectedSeats] = useState([]);
-  const [totalPrice, setTotalPrice] = useState(0);
 
-  const movieId = searchParams.get('movieId');
+  const dates = getDates();
 
   useEffect(() => {
-    if (movieId) {
-      const parsedId = parseInt(movieId);
-      const foundMovie = NOW_SHOWING_MOVIES.find(m => m.id === parsedId);
-      if (foundMovie) {
-        setMovie(foundMovie);
-      } else {
-        toast.error('Movie not found!');
-        navigate('/');
-      }
-    } else {
-      navigate('/');
-    }
+    const found = NOW_SHOWING_MOVIES.find(m => m.id === parseInt(movieId));
+    if (found) setMovie(found);
+    else navigate('/');
     setLoading(false);
   }, [movieId, navigate]);
 
-  const nextStep = () => {
-    if (currentStep < STEPS.length - 1) {
-      setCurrentStep(prev => prev + 1);
-    }
+  if (loading || !movie) return <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center text-2xl">Loading...</div>;
+
+  const showtimes = MOCK_SHOWTIMES[selectedCity]?.[movie.title] || {};
+  const cinemas = Object.keys(showtimes);
+
+  const getAvailabilityColor = (seats) => seats <= 5 ? 'bg-red-600' : seats <= 20 ? 'bg-orange-500' : 'bg-green-600';
+  const getAvailabilityText = (seats) => seats <= 5 ? 'Filling Fast' : seats <= 20 ? 'Limited' : 'Available';
+
+  const pickBestSeats = () => {
+    const best = ['D5', 'D6', 'E5', 'E6'].slice(0, 8 - selectedSeats.length);
+    setSelectedSeats(prev => [...prev, ...best.filter(s => !prev.includes(s))]);
+    toast.success("Best seats selected for you!");
   };
 
-  const prevStep = () => {
-    if (currentStep > 0) {
-      setCurrentStep(prev => prev - 1);
-    }
+  const proceedToPayment = () => {
+    if (selectedSeats.length === 0) return toast.error("Please select at least one seat");
+    const total = selectedSeats.length * 450;
+    localStorage.setItem('latestBooking', JSON.stringify({
+      movie: movie.title, cinema: selectedShow.cinema, date: selectedDate.label,
+      time: selectedShow.time, seats: selectedSeats.join(', '), total
+    }));
+    toast.success(`Booking Confirmed! NPR ${total}`);
+    navigate('/my-tickets');
   };
-
-  const selectDate = (date) => {
-    setSelectedDate(date);
-    nextStep();
-  };
-
-  const selectCinema = (cinema) => {
-    setSelectedCinema(cinema);
-    nextStep();
-  };
-
-  const selectLanguage = (lang) => {
-    setSelectedLanguage(lang);
-    nextStep();
-  };
-
-  const selectTime = (time) => {
-    setSelectedTime(time);
-    nextStep();
-  };
-
-  const toggleSeat = (row, col) => {
-    const seatId = `${row}-${col}`;
-    const seatIndex = selectedSeats.findIndex(s => s === seatId);
-    if (seatIndex !== -1) {
-      setSelectedSeats(prev => prev.filter((_, idx) => idx !== seatIndex));
-    } else if (selectedSeats.length < 10) {
-      setSelectedSeats(prev => [...prev, seatId]);
-    } else {
-      toast.warn('Maximum 10 seats allowed.');
-    }
-  };
-
-  const completeBooking = () => {
-    if (selectedSeats.length === 0) {
-      toast.error('Please select at least one seat.');
-      return;
-    }
-    const pricePerSeat = 500; // Mock price
-    const total = selectedSeats.length * pricePerSeat;
-    setTotalPrice(total);
-    // Save to localStorage for MyTickets
-    const booking = {
-      movie: movie.title,
-      date: selectedDate,
-      cinema: selectedCinema,
-      language: selectedLanguage,
-      time: selectedTime,
-      seats: selectedSeats,
-      total
-    };
-    localStorage.setItem('latestBooking', JSON.stringify(booking));
-    toast.success(`Booking confirmed! Total: NPR ${total}. Check My Tickets.`);
-    setCurrentStep(5);
-  };
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center min-h-screen bg-[url('/bgsignup.png')] bg-cover bg-center bg-no-repeat">
-        <div className="text-white text-xl drop-shadow-lg">Loading movie details...</div>
-      </div>
-    );
-  }
-
-  if (!movie) {
-    return (
-      <div className="flex justify-center items-center min-h-screen bg-[url('/bgsignup.png')] bg-cover bg-center bg-no-repeat">
-        <div className="text-white text-xl drop-shadow-lg">No movie selected. <button onClick={() => navigate('/')} className="text-green-400 underline">Go to Home</button></div>
-      </div>
-    );
-  }
 
   return (
-    <div className="min-h-screen bg-[url('/bgsignup.png')] bg-cover bg-center bg-no-repeat">
-      {/* Navbar */}
+    <div className="min-h-screen bg-gradient-to-b from-black via-gray-900 to-black text-white">
       <Navbar />
 
-      {/* Movie Details Content */}
-      <main className="pt-16 p-8">
-        <div className="max-w-6xl mx-auto">
-          {/* Back Button */}
-          <button
-            onClick={() => navigate('/')}
-            className="mb-6 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-semibold transition-colors"
-          >
-            ← Back to Home
-          </button>
+  {/* Cinematic Hero Banner */}
+<div className="relative h-96 md:h-screen max-h-96 lg:max-h-screen overflow-hidden">
+  <img 
+    src={movie.banner} 
+    alt={`${movie.title} banner`} 
+    className="w-full h-full object-cover brightness-75"
+  />
+  <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
+  
+  {/* Title Overlay */}
+  <div className="absolute bottom-0 left-0 right-0 p-8 md:p-16 text-left">
+    <h1 className="text-5xl md:text-7xl font-bold mb-4 drop-shadow-2xl leading-tight">
+      {movie.title}
+    </h1>
+    <div className="flex flex-wrap gap-4 text-lg md:text-2xl">
+      <span className="bg-white/20 backdrop-blur px-6 py-2 rounded-full">{movie.language}</span>
+      <span className="bg-white/20 backdrop-blur px-6 py-2 rounded-full">{movie.genre}</span>
+    </div>
+  </div>
 
-          {/* Movie Hero Section */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-            <div className="relative">
-              <img
-                src={movie.image}
-                alt={movie.title}
-                className="w-full h-96 object-cover rounded-lg shadow-lg"
-                onError={(e) => {
-                  e.target.src = 'https://picsum.photos/400/600?random=0';
-                }}
-              />
-            </div>
-            <div className="text-white space-y-4">
-              <h1 className="text-4xl font-bold drop-shadow-lg">{movie.title}</h1>
-              <div className="space-y-2">
-                <p className="text-lg"><span className="font-semibold">Release Date:</span> {movie.date}</p>
-                <p className="text-lg"><span className="font-semibold">Language:</span> {movie.language}</p>
-                <p className="text-lg"><span className="font-semibold">Genre:</span> {movie.genre}</p>
-              </div>
-              <p className="text-lg drop-shadow-lg">{movie.synopsis}</p>
-            </div>
+  <button 
+    onClick={() => navigate(-1)} 
+    className="absolute top-8 left-8 bg-white/20 backdrop-blur hover:bg-white/30 px-6 py-3 rounded-full font-medium z-10 transition"
+  >
+    ← Back
+  </button>
+</div>
+
+    {/* Movie Poster + Info Section */}
+<div className="max-w-7xl mx-auto px-4 -mt-32 md:-mt-1 relative z-10 mb-16">
+  <div className="grid lg:grid-cols-3 gap-10">
+    
+    {/* Movie Poster (Sticky on scroll) */}
+    <div className="lg:col-span-1">
+      <div className="sticky top-24">
+        <div className="bg-white rounded-3xl shadow-2xl overflow-hidden border-8 border-white">
+          <img 
+            src={movie.poster} 
+            alt={movie.title} 
+            className="w-full h-auto object-cover"
+          />
+        </div>
+        <div className="text-center mt-6">
+          <p className="text-green-400 font-semibold text-lg">Now Showing</p>
+        </div>
+      </div>
+    </div>
+
+    {/* Synopsis + Cast */}
+    <div className="lg:col-span-2 space-y-10">
+      <div className="bg-white/10 backdrop-blur-lg rounded-3xl p-8 border border-white/20">
+        <h2 className="text-4xl font-bold mb-6 text-green-400">Synopsis</h2>
+        <p className="text-lg leading-relaxed text-gray-100">
+          {movie.synopsis}
+        </p>
+      </div>
+
+      <div className="bg-white/10 backdrop-blur-lg rounded-3xl p-8 border border-white/20">
+        <h2 className="text-4xl font-bold mb-8 text-green-400">Cast & Crew</h2>
+        <div className="grid md:grid-cols-2 gap-8">
+          <div>
+            <p className="text-sm text-gray-400 mb-2">Director</p>
+            <p className="text-2xl font-bold text-white">{movie.director}</p>
           </div>
-
-          {/* Booking Flow - Shown by default */}
-          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-8 mb-8">
-            {/* Progress Bar */}
-            <div className="flex justify-between mb-8 text-white text-sm font-semibold">
-              {STEPS.map((step, idx) => (
-                <div key={idx} className={`flex-1 text-center ${
-                  idx < currentStep ? 'text-green-400' : idx === currentStep ? 'text-green-600' : 'text-gray-400'
-                }`}>
-                  {step}
-                  {idx < STEPS.length - 1 && <span className="mx-2">&gt;</span>}
+          <div>
+            <p className="text-sm text-gray-400 mb-4">Starring</p>
+            <div className="space-y-3">
+              {movie.cast.map((actor, i) => (
+                <div key={i} className="flex justify-between items-center py-3 border-b border-white/10 last:border-0">
+                  <span className="text-lg font-medium text-white">{actor.name}</span>
+                  <span className="text-sm bg-green-600/30 px-4 py-1 rounded-full text-green-300">
+                    {actor.role}
+                  </span>
                 </div>
               ))}
             </div>
-
-            {/* Step Content */}
-            <div className="text-white">
-              {/* Step 0: Select Date */}
-              {currentStep === 0 && (
-                <div>
-                  <h3 className="text-xl font-semibold mb-4">Select Date</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                    {MOCK_BOOKING_DATA.dates.map((date, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => selectDate(date)}
-                        className={`p-4 rounded-lg border-2 transition-colors ${
-                          selectedDate === date
-                            ? 'bg-green-600 border-green-600 text-white'
-                            : 'bg-transparent border-white/50 hover:border-green-400'
-                        }`}
-                      >
-                        {date}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Step 1: Select Cinema */}
-              {currentStep === 1 && (
-                <div>
-                  <h3 className="text-xl font-semibold mb-4">Select Cinema</h3>
-                  <div className="space-y-3">
-                    {MOCK_BOOKING_DATA.cinemas.map((cinema) => (
-                      <button
-                        key={cinema.id}
-                        onClick={() => selectCinema(cinema.name)}
-                        className={`w-full p-4 text-left rounded-lg border-2 transition-colors ${
-                          selectedCinema === cinema.name
-                            ? 'bg-green-600 border-green-600 text-white'
-                            : 'bg-transparent border-white/50 hover:border-green-400'
-                        }`}
-                      >
-                        <div className="font-semibold">{cinema.name}</div>
-                        <div className="text-sm opacity-75">{cinema.location}</div>
-                      </button>
-                    ))}
-                  </div>
-                  <button onClick={prevStep} className="mt-4 text-green-400 underline">← Back</button>
-                </div>
-              )}
-
-              {/* Step 2: Select Language/Version */}
-              {currentStep === 2 && (
-                <div>
-                  <h3 className="text-xl font-semibold mb-4">Select Language/Version</h3>
-                  <div className="space-y-3">
-                    {MOCK_BOOKING_DATA.languages.map((lang) => (
-                      <button
-                        key={lang.id}
-                        onClick={() => selectLanguage(lang.name)}
-                        className={`w-full p-4 text-left rounded-lg border-2 transition-colors ${
-                          selectedLanguage === lang.name
-                            ? 'bg-green-600 border-green-600 text-white'
-                            : 'bg-transparent border-white/50 hover:border-green-400'
-                        }`}
-                      >
-                        {lang.name}
-                      </button>
-                    ))}
-                  </div>
-                  <button onClick={prevStep} className="mt-4 text-green-400 underline">← Back</button>
-                </div>
-              )}
-
-              {/* Step 3: Select Time */}
-              {currentStep === 3 && selectedCinema && selectedLanguage && (
-                <div>
-                  <h3 className="text-xl font-semibold mb-4">Select Showtime</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    {MOCK_BOOKING_DATA.times[selectedCinema]?.[selectedLanguage.split(' (')[0].toLowerCase().replace(' ', '-')]?.map((time, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => selectTime(time)}
-                        className={`p-3 rounded-lg border-2 transition-colors ${
-                          selectedTime === time
-                            ? 'bg-green-600 border-green-600 text-white'
-                            : 'bg-transparent border-white/50 hover:border-green-400'
-                        }`}
-                      >
-                        {time}
-                      </button>
-                    ))}
-                  </div>
-                  <button onClick={prevStep} className="mt-4 text-green-400 underline">← Back</button>
-                </div>
-              )}
-
-              {/* Step 4: Select Seats */}
-              {currentStep === 4 && selectedTime && (
-                <div>
-                  <h3 className="text-xl font-semibold mb-4">Select Seats (Max 10)</h3>
-                  <div className="mb-4">
-                    <p className="text-sm opacity-75 mb-2">Selected: {selectedSeats.length} seats</p>
-                    <div className="grid grid-cols-5 gap-1 bg-gray-800 p-4 rounded-lg max-w-xs mx-auto">
-                      {MOCK_BOOKING_DATA.seats.map((row, rowIdx) =>
-                        row.map((seat, colIdx) => {
-                          const seatId = `${rowIdx}-${colIdx}`;
-                          const isSelected = selectedSeats.includes(seatId);
-                          const isBooked = seat === 1;
-                          return (
-                            <button
-                              key={seatId}
-                              onClick={() => !isBooked && toggleSeat(rowIdx, colIdx)}
-                              disabled={isBooked}
-                              className={`w-8 h-8 rounded flex items-center justify-center text-xs font-bold transition-colors ${
-                                isBooked
-                                  ? 'bg-gray-600 cursor-not-allowed'
-                                  : isSelected
-                                  ? 'bg-green-600 text-white'
-                                  : 'bg-gray-700 hover:bg-gray-600 text-white'
-                              }`}
-                            >
-                              {String.fromCharCode(65 + rowIdx)}{colIdx + 1}
-                            </button>
-                          );
-                        })
-                      )}
-                    </div>
-                  </div>
-                  <button
-                    onClick={completeBooking}
-                    disabled={selectedSeats.length === 0}
-                    className={`w-full py-3 px-6 rounded-md text-lg font-semibold transition-colors ${
-                      selectedSeats.length === 0
-                        ? 'bg-gray-600 cursor-not-allowed'
-                        : 'bg-green-600 hover:bg-green-700'
-                    } text-white`}
-                  >
-                    Proceed to Payment (NPR {selectedSeats.length * 500})
-                  </button>
-                  <button onClick={prevStep} className="mt-4 text-green-400 underline">← Back</button>
-                </div>
-              )}
-
-              {/* Step 5: Complete */}
-              {currentStep === 5 && (
-                <div className="text-center text-white">
-                  <h3 className="text-xl font-semibold mb-4">Booking Complete!</h3>
-                  <p className="mb-4">Your tickets have been added to My Tickets.</p>
-                  <div className="space-y-2 text-sm opacity-75 mb-6">
-                    <p><strong>Date:</strong> {selectedDate}</p>
-                    <p><strong>Cinema:</strong> {selectedCinema}</p>
-                    <p><strong>Language:</strong> {selectedLanguage}</p>
-                    <p><strong>Time:</strong> {selectedTime}</p>
-                    <p><strong>Seats:</strong> {selectedSeats.join(', ')}</p>
-                    <p><strong>Total:</strong> NPR {totalPrice}</p>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setCurrentStep(0);
-                      setSelectedDate('');
-                      setSelectedCinema('');
-                      setSelectedLanguage('');
-                      setSelectedTime('');
-                      setSelectedSeats([]);
-                      setTotalPrice(0);
-                    }}
-                    className="bg-green-600 hover:bg-green-700 text-white py-3 px-6 rounded-md font-semibold transition-colors"
-                  >
-                    Book Another
-                  </button>
-                  <button
-                    onClick={() => navigate('/my-tickets')}
-                    className="ml-4 bg-blue-600 hover:bg-blue-700 text-white py-3 px-6 rounded-md font-semibold transition-colors"
-                  >
-                    View My Tickets
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Additional Sections (e.g., Showtimes, Cast - placeholders) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 text-white">
-              <h3 className="text-xl font-bold mb-4">Showtimes</h3>
-              <ul className="space-y-2">
-                <li>10:00 AM - Kathmandu Cineplex</li>
-                <li>1:00 PM - Big Cinema</li>
-                <li>4:00 PM - Roxy Theatre</li>
-                <li>7:00 PM - Kathmandu Cineplex</li>
-              </ul>
-            </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 text-white">
-              <h3 className="text-xl font-bold mb-4">Cast & Crew</h3>
-              <ul className="space-y-1 text-sm">
-                <li>Director: John Doe</li>
-                <li>Lead Actor: Jane Smith</li>
-                <li>Supporting: Bob Johnson</li>
-              </ul>
-            </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 text-white">
-              <h3 className="text-xl font-bold mb-4">Ratings</h3>
-              <p className="text-2xl font-bold">★★★★☆ (4.2/5)</p>
-              <p className="text-sm opacity-75">Based on 1,234 reviews</p>
-            </div>
           </div>
         </div>
-      </main>
+      </div>
+    </div>
+  </div>
+</div>
+
+      {/* Rest of your booking flow - City, Date, Language, Showtimes, Seat Modal */}
+      <div className="max-w-7xl mx-auto px-4 pb-20">
+        {/* City Selector */}
+        <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 mb-6 shadow-2xl">
+          <label className="text-sm opacity-75">Select City</label>
+          <div className="flex flex-wrap gap-3 mt-3">
+            {CITIES.map(city => (
+              <button key={city} onClick={() => setSelectedCity(city)}
+                className={`px-6 py-3 rounded-full font-medium transition-all ${selectedCity === city ? 'bg-green-600 text-white' : 'bg-white/20 hover:bg-white/30'}`}>
+                {city}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Date Carousel */}
+        <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 mb-8 shadow-2xl overflow-x-auto">
+          <div className="flex gap-4 min-w-max">
+            {dates.map((d, i) => (
+              <button key={i} onClick={() => setSelectedDate(d)}
+                className={`px-6 py-4 rounded-xl text-center transition-all min-w-24 ${selectedDate.date === d.date ? 'bg-green-600 text-white shadow-lg scale-105' : 'bg-white/20 hover:bg-white/30'}`}>
+                <div className="text-xs opacity-75">{d.label.split(' ')[0]}</div>
+                <div className="font-bold">{d.label.includes('Today') ? 'Today' : d.label.includes('Tomorrow') ? 'Tomorrow' : d.label.split(' ').slice(1).join(' ')}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Language Chips */}
+        <div className="flex flex-wrap gap-3 mb-6 justify-center">
+          <button onClick={() => setSelectedLanguage("all")} className={`px-5 py-2 rounded-full ${selectedLanguage === "all" ? 'bg-green-600' : 'bg-white/20'} hover:bg-green-600 transition`}>All Languages</button>
+          {LANGUAGES.map(lang => (
+            <button key={lang} onClick={() => setSelectedLanguage(lang)} className={`px-5 py-2 rounded-full ${selectedLanguage === lang ? 'bg-green-600' : 'bg-white/20'} hover:bg-green-600 transition`}>{lang}</button>
+          ))}
+        </div>
+
+        {/* Showtimes Grid */}
+        <div className="space-y-8 mb-12">
+          {cinemas.length === 0 ? (
+            <div className="text-center py-20 text-xl opacity-70">No shows available for selected filters</div>
+          ) : (
+            cinemas.map(cinema => {
+              const formats = showtimes[cinema];
+              return (
+                <div key={cinema} className="bg-white/10 backdrop-blur-md rounded-2xl p-6 shadow-xl">
+                  <h3 className="text-2xl font-bold mb-4">{cinema}</h3>
+                  <div className="space-y-6">
+                    {Object.entries(formats).map(([lang, times]) => (
+                      (selectedLanguage === "all" || selectedLanguage === lang) && (
+                        <div key={lang}>
+                          <span className="text-sm opacity-75 bg-white/20 px-4 py-1 rounded-full">{lang}</span>
+                          <div className="flex flex-wrap gap-3 mt-3">
+                            {times.map((time, idx) => {
+                              const seats = formats.seatsLeft?.[idx] || 50;
+                              return (
+                                <button key={time} onClick={() => setSelectedShow({ cinema, time, language: lang, price: 450 })}
+                                  className={`px-5 py-3 rounded-lg border-2 transition-all ${selectedShow?.cinema === cinema && selectedShow?.time === time ? 'bg-green-600 border-green-600 text-white' : 'border-white/30 hover:border-green-400'}`}>
+                                  <div className="font-medium">{time}</div>
+                                  <div className={`text-xs mt-1 ${getAvailabilityColor(seats)} text-white px-2 py-0.5 rounded`}>
+                                    {getAvailabilityText(seats)} {seats <= 20 && `• ${seats} left`}
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )
+                    ))}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Seat Selection Modal */}
+        {selectedShow && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-gray-900 rounded-2xl max-w-2xl w-full p-8 shadow-2xl">
+              <h2 className="text-2xl font-bold mb-4">Select Seats • {selectedShow.time}</h2>
+              <div className="text-center mb-6">
+                <div className="inline-block bg-gray-800 rounded-t-2xl px-20 py-4 text-lg font-bold">SCREEN</div>
+              </div>
+
+              <div className="grid grid-cols-10 gap-2 max-w-lg mx-auto mb-8">
+                {Array.from({ length: 60 }, (_, i) => {
+                  const row = String.fromCharCode(65 + Math.floor(i / 10));
+                  const col = (i % 10) + 1;
+                  const seatId = `${row}${col}`;
+                  const isSelected = selectedSeats.includes(seatId);
+                  const isBooked = Math.random() > 0.7;
+                  const isPrime = ['C4','C5','C6','C7','D4','D5','D6','D7'].includes(seatId);
+
+                  return (
+                    <button key={seatId} disabled={isBooked} onClick={() => {
+                      if (isSelected) setSelectedSeats(prev => prev.filter(s => s !== seatId));
+                      else if (selectedSeats.length < 8) setSelectedSeats(prev => [...prev, seatId]);
+                      else toast.warn("Max 8 seats");
+                    }}
+                      className={`w-10 h-10 rounded text-xs font-bold transition-all ${isBooked ? 'bg-gray-700 cursor-not-allowed' : isSelected ? 'bg-green-600 text-white' : isPrime ? 'bg-purple-600 hover:bg-purple-500' : 'bg-gray-600 hover:bg-gray-500'}`}>
+                      {row}{col}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="flex justify-center gap-4 mb-6">
+                <button onClick={pickBestSeats} className="bg-gradient-to-r from-green-600 to-emerald-600 px-6 py-3 rounded-full font-bold">
+                  Pick Best Seats For Me
+                </button>
+              </div>
+
+              <div className="flex justify-between items-center">
+                <button onClick={() => { setSelectedShow(null); setSelectedSeats([]); }} className="text-red-400 underline">Cancel</button>
+                <button onClick={proceedToPayment} disabled={selectedSeats.length === 0}
+                  className="bg-green-600 hover:bg-green-700 disabled:bg-gray-600 px-10 py-4 rounded-full font-bold text-lg">
+                  Pay NPR {selectedSeats.length * 450} →
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
       <Footer />
     </div>
   );
