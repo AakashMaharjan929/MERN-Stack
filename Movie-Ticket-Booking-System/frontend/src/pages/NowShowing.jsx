@@ -1,4 +1,4 @@
-// pages/NowShowing.jsx
+// src/pages/NowShowing.jsx
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -25,6 +25,9 @@ const NowShowing = () => {
   const [selectedLanguage, setSelectedLanguage] = useState("all");
   const [selectedShow, setSelectedShow] = useState(null);
   const [selectedSeats, setSelectedSeats] = useState([]);
+
+  // NEW: Payment method state
+  const [paymentMethod, setPaymentMethod] = useState(null); // 'stripe' | 'esewa' | null
 
   // Helper: Extract string ID from various MongoDB formats
   const getIdString = (id) => {
@@ -186,25 +189,116 @@ const NowShowing = () => {
     toast.success("Best available seats picked!");
   };
 
-  const proceedToPayment = () => {
+   // Get actual seatLayout from the screen
+  const getScreenLayout = () => {
+    if (!selectedShow?.fullShow?.screenId) return null;
+
+    const theater = theaters.find(t =>
+      t.screens.some(screen => getIdString(screen) === getIdString(selectedShow.fullShow.screenId))
+    );
+
+    if (!theater) return null;
+
+    const screen = theater.screens.find(s => getIdString(s) === getIdString(selectedShow.fullShow.screenId));
+    return screen?.seatLayout || null;
+  };
+
+  // Calculate total amount dynamically
+  const calculateTotal = () => {
+    if (selectedSeats.length === 0 || !selectedShow?.fullShow?.pricingRules) return 0;
+
+    const rules = selectedShow.fullShow.pricingRules;
+    const totalSeats = selectedShow.fullShow.totalSeatCount || 154;
+    const bookedCount = selectedShow.fullShow.availableSeats.filter(s => s && s.isBooked).length;
+    const bookedRatio = bookedCount / totalSeats;
+
+    const multiplier = 1 + rules.alpha + (rules.beta * bookedRatio);
+
+    const standardPrice = Math.round(rules.standardBasePrice * multiplier);
+    const premiumPrice = Math.round(rules.premiumBasePrice * multiplier);
+
+    const standardSelected = selectedSeats.filter(seatNum => {
+      const def = getScreenLayout()?.flat().find(sd => sd && sd.seatNumber === seatNum);
+      return def && def.type !== 'Premium';
+    }).length;
+
+    const premiumSelected = selectedSeats.length - standardSelected;
+
+    return (standardSelected * standardPrice) + (premiumSelected * premiumPrice);
+  };
+
+  const totalAmount = calculateTotal();
+
+  // Handle payment gateway redirection
+  const handleProceedToPayment = () => {
     if (selectedSeats.length === 0) {
       toast.error("Please select at least one seat");
       return;
     }
 
-    const total = selectedSeats.length * 450;
+    if (!paymentMethod) {
+      toast.error("Please select a payment method");
+      return;
+    }
 
-    localStorage.setItem('latestBooking', JSON.stringify({
+    const bookingData = {
       movie: movie.title,
       cinema: selectedShow.cinema,
       date: selectedDate.label,
       time: selectedShow.time,
       seats: selectedSeats.join(', '),
-      total
-    }));
+      total: totalAmount,
+      showId: selectedShow.showId,
+      selectedSeatsNumbers: selectedSeats,
+      language: selectedShow.language
+    };
 
-    toast.success(`Proceeding to payment: NPR ${total}`);
-    navigate('/payment');
+    if (paymentMethod === 'stripe') {
+      // Save pending booking and redirect to Stripe checkout page
+      localStorage.setItem('pendingBooking', JSON.stringify(bookingData));
+      navigate('/payment/stripe');
+    } else if (paymentMethod === 'esewa') {
+      // Generate unique IDs for eSewa
+      const transactionUUID = `TXN-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const pid = `BOOK-${selectedShow.showId}-${transactionUUID}`;
+
+      // Save for later verification
+      localStorage.setItem('pendingBooking', JSON.stringify({
+        ...bookingData,
+        pid,
+        transactionUUID,
+        paymentMethod: 'esewa'
+      }));
+
+      // Create and submit eSewa form
+      const form = document.createElement('form');
+      form.method = 'POST';
+      // Use UAT for testing; change to https://epay.esewa.com.np/epay/main for production
+      form.action = 'https://uat.esewa.com.np/epay/main';
+
+      const params = {
+        amt: totalAmount,
+        psc: 0,
+        pdc: 0,
+        txAmt: 0,
+        tAmt: totalAmount,
+        pid: pid,
+        scd: 'EPAYTEST', // Replace with your actual merchant code in production
+        su: `${window.location.origin}/payment/esewa-success`,
+        fu: `${window.location.origin}/payment/esewa-failure`
+      };
+
+      Object.keys(params).forEach(key => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = key;
+        input.value = params[key];
+        form.appendChild(input);
+      });
+
+      document.body.appendChild(form);
+      form.submit();
+    }
   };
 
   // Image URL helper
@@ -215,6 +309,8 @@ const NowShowing = () => {
 
   const posterUrl = getImageUrl(movie?.profilePoster);
   const bannerUrl = getImageUrl(movie?.bannerPoster || movie?.profilePoster);
+
+ 
 
   if (loading) return <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center text-2xl">Loading showtimes...</div>;
   if (error || !movie) return <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center text-2xl">{error || 'Movie not found'}</div>;
@@ -364,7 +460,7 @@ const NowShowing = () => {
         {/* Seat Selection Modal */}
         {selectedShow && selectedShow.fullShow && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-gray-900 rounded-2xl max-w-4xl w-full p-8 shadow-2xl overflow-y-auto max-h-screen">
+            <div className="bg-gray-900 rounded-2xl max-w-5xl w-full p-8 shadow-2xl overflow-y-auto max-h-screen">
               <h2 className="text-2xl font-bold mb-4">
                 Select Seats • {selectedShow.time} • {selectedShow.cinema}
               </h2>
@@ -372,65 +468,167 @@ const NowShowing = () => {
                 <div className="inline-block bg-gray-800 rounded-t-2xl px-20 py-4 text-lg font-bold">SCREEN</div>
               </div>
 
-              <div className="grid grid-cols-14 gap-2 max-w-4xl mx-auto mb-8">
-                {selectedShow.fullShow.availableSeats.map((seat, index) => {
-                  if (!seat) return <div key={index} className="w-10 h-10" />; // Aisle gap
+              {/* Dynamic Seat Layout */}
+              <div className="w-full overflow-x-auto">
+                {getScreenLayout() ? (
+                  <div className="space-y-3">
+                    {getScreenLayout().map((row, rowIndex) => (
+                      <div key={rowIndex} className="flex justify-center gap-3">
+                        {row.map((seatDef, colIndex) => {
+                          if (seatDef === null) {
+                            return <div key={`aisle-${rowIndex}-${colIndex}`} className="w-20 h-10" />;
+                          }
 
-                  const isSelected = selectedSeats.includes(seat.seatNumber);
-                  const isBooked = seat.isBooked;
-                  const isPremium = seat.seatType === 'Premium';
+                          const showSeat = selectedShow.fullShow.availableSeats.find(
+                            s => s && s.seatNumber === seatDef.seatNumber
+                          );
 
-                  return (
-                    <button
-                      key={seat.seatNumber}
-                      disabled={isBooked}
-                      onClick={() => {
-                        if (isSelected) {
-                          setSelectedSeats(prev => prev.filter(s => s !== seat.seatNumber));
-                        } else if (selectedSeats.length < 8) {
-                          setSelectedSeats(prev => [...prev, seat.seatNumber]);
-                        } else {
-                          toast.warn("Maximum 8 seats allowed");
-                        }
-                      }}
-                      className={`w-10 h-10 rounded text-xs font-bold transition-all ${
-                        isBooked
-                          ? 'bg-gray-700 cursor-not-allowed text-gray-500'
-                          : isSelected
-                          ? 'bg-green-600 text-white'
-                          : isPremium
-                          ? 'bg-purple-600 hover:bg-purple-500 text-white'
-                          : 'bg-gray-600 hover:bg-gray-500 text-white'
-                      }`}
-                    >
-                      {seat.seatNumber}
-                    </button>
-                  );
-                })}
+                          const isBooked = showSeat?.isBooked || false;
+                          const isSelected = selectedSeats.includes(seatDef.seatNumber);
+                          const isPremium = seatDef.type === 'Premium';
+
+                          return (
+                            <button
+                              key={seatDef.seatNumber}
+                              disabled={isBooked}
+                              onClick={() => {
+                                if (isSelected) {
+                                  setSelectedSeats(prev => prev.filter(s => s !== seatDef.seatNumber));
+                                } else if (selectedSeats.length < 8) {
+                                  setSelectedSeats(prev => [...prev, seatDef.seatNumber]);
+                                } else {
+                                  toast.warn("Maximum 8 seats allowed");
+                                }
+                              }}
+                              className={`w-10 h-10 rounded text-xs font-bold transition-all flex items-center justify-center ${
+                                isBooked
+                                  ? 'bg-gray-700 cursor-not-allowed text-gray-500'
+                                  : isSelected
+                                  ? 'bg-green-600 text-white'
+                                  : isPremium
+                                  ? 'bg-purple-600 hover:bg-purple-500 text-white'
+                                  : 'bg-gray-600 hover:bg-gray-500 text-white'
+                              }`}
+                            >
+                              {seatDef.seatNumber}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-center text-gray-400">Seat layout not available</p>
+                )}
               </div>
 
-              <div className="flex justify-center gap-4 mb-6">
+              <div className="flex justify-center gap-4 mb-6 mt-8">
                 <button onClick={pickBestSeats} className="bg-gradient-to-r from-green-600 to-emerald-600 px-6 py-3 rounded-full font-bold">
                   Pick Best Seats For Me
                 </button>
               </div>
 
-              <div className="flex justify-between items-center">
+              {/* Dynamic Price Breakdown */}
+              {selectedSeats.length > 0 && selectedShow.fullShow.pricingRules && (
+                (() => {
+                  const rules = selectedShow.fullShow.pricingRules;
+                  const totalSeats = selectedShow.fullShow.totalSeatCount || 154;
+                  const bookedCount = selectedShow.fullShow.availableSeats.filter(s => s && s.isBooked).length;
+                  const bookedRatio = bookedCount / totalSeats;
+
+                  const multiplier = 1 + rules.alpha + (rules.beta * bookedRatio);
+
+                  const standardPrice = Math.round(rules.standardBasePrice * multiplier);
+                  const premiumPrice = Math.round(rules.premiumBasePrice * multiplier);
+
+                  const standardSelected = selectedSeats.filter(seatNum => {
+                    const def = getScreenLayout()?.flat().find(sd => sd && sd.seatNumber === seatNum);
+                    return def && def.type !== 'Premium';
+                  }).length;
+
+                  const premiumSelected = selectedSeats.length - standardSelected;
+
+                  const total = (standardSelected * standardPrice) + (premiumSelected * premiumPrice);
+
+                  return (
+                    <div className="bg-white/10 rounded-xl p-6 mb-6 text-lg border border-white/20">
+                      <div className="space-y-3">
+                        {standardSelected > 0 && (
+                          <div className="flex justify-between">
+                            <span>Standard Seats ({standardSelected}) × NPR {standardPrice}</span>
+                            <span>NPR {standardSelected * standardPrice}</span>
+                          </div>
+                        )}
+                        {premiumSelected > 0 && (
+                          <div className="flex justify-between">
+                            <span>Premium Seats ({premiumSelected}) × NPR {premiumPrice}</span>
+                            <span>NPR {premiumSelected * premiumPrice}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between font-bold text-xl mt-4 pt-4 border-t border-white/30">
+                          <span>Total Amount</span>
+                          <span>NPR {total}</span>
+                        </div>
+                        {bookedRatio > 0.5 && (
+                          <p className="text-orange-400 text-sm text-center mt-3">
+                            ⚡ High demand! Prices increased by {Math.round((multiplier - 1) * 100)}%
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()
+              )}
+
+              {/* Payment Method Selection */}
+              {selectedSeats.length > 0 && (
+                <div className="mt-8 bg-white/10 rounded-xl p-6 border border-white/20">
+                  <h3 className="text-xl font-bold mb-6 text-center">Choose Payment Method</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <button
+                      onClick={() => setPaymentMethod('stripe')}
+                      className={`p-8 rounded-2xl border-4 transition-all flex flex-col items-center ${
+                        paymentMethod === 'stripe'
+                          ? 'bg-blue-600/30 border-blue-500 shadow-xl scale-105'
+                          : 'border-white/30 hover:border-blue-400 bg-white/5'
+                      }`}
+                    >
+                      <div className="text-4xl font-bold mb-3">Stripe</div>
+                      <p className="text-sm opacity-80 text-center">Pay securely with Credit/Debit Card<br />(Visa, MasterCard, International)</p>
+                    </button>
+
+                    <button
+                      onClick={() => setPaymentMethod('esewa')}
+                      className={`p-8 rounded-2xl border-4 transition-all flex flex-col items-center ${
+                        paymentMethod === 'esewa'
+                          ? 'bg-green-600/30 border-green-500 shadow-xl scale-105'
+                          : 'border-white/30 hover:border-green-400 bg-white/5'
+                      }`}
+                    >
+                      <div className="text-4xl font-bold mb-3 text-green-400">eSewa</div>
+                      <p className="text-sm opacity-80 text-center">Pay instantly with eSewa Wallet<br />(Popular in Nepal)</p>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-between items-center mt-10">
                 <button
                   onClick={() => {
                     setSelectedShow(null);
                     setSelectedSeats([]);
+                    setPaymentMethod(null);
                   }}
-                  className="text-red-400 underline"
+                  className="text-red-400 underline hover:text-red-300"
                 >
-                  Cancel
+                  Cancel Selection
                 </button>
                 <button
-                  onClick={proceedToPayment}
-                  disabled={selectedSeats.length === 0}
-                  className="bg-green-600 hover:bg-green-700 disabled:bg-gray-600 px-10 py-4 rounded-full font-bold text-lg"
+                  onClick={handleProceedToPayment}
+                  disabled={selectedSeats.length === 0 || !paymentMethod}
+                  className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed px-12 py-5 rounded-full font-bold text-xl shadow-lg disabled:shadow-none transition-all"
                 >
-                  Pay NPR {selectedSeats.length * 450} →
+                  Pay NPR {totalAmount} →
                 </button>
               </div>
             </div>

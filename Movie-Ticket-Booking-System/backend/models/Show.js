@@ -26,6 +26,12 @@ const showSchema = new mongoose.Schema(
       alpha: { type: Number, default: 0.1 }, // demand factor
       beta: { type: Number, default: 0.05 }, // time factor
     },
+    // In models/Show.js
+status: {
+  type: String,
+  enum: ['Upcoming', 'Live', 'Completed'],
+  default: 'Upcoming'
+},
     availableSeats: [mongoose.Schema.Types.Mixed],  // UPDATED: Mixed to allow nulls (aisles) or seat objects
     totalSeatCount: { type: Number, required: true },  // Bookable seats only (excludes nulls)
     pricingHistory: [  // NEW: Track sales snapshots for post-show analysis
@@ -40,6 +46,7 @@ const showSchema = new mongoose.Schema(
       }
     ]
   },
+  
   { timestamps: true }
 );
 
@@ -224,47 +231,44 @@ class ShowClass {
   // ---------------------------
   // Booking Methods
   // ---------------------------
-  async bookSeats(seatIds) {
-    const notAvailable = [];
-    this.availableSeats.forEach(seat => {
-      if (seatIds.includes(seat.seatNumber)) {
-        if (!seat) {  // UPDATED: Skip null aisles
-          notAvailable.push('Aisle (non-bookable)');
-          return;
-        }
-        if (seat.isBooked) {
-          notAvailable.push(seat.seatNumber);
-        } else {
-          seat.isBooked = true;
-        }
-      }
-    });
+// Replace or update the beginning of bookSeats method
+async bookSeats(seatIds) {
+  const now = new Date();
 
-    if (notAvailable.length > 0) {
-      throw new Error(`Seats not available: ${notAvailable.join(", ")}`);
-    }
+  // Allow booking only up to 15 minutes before show starts
+  const bookingCutoff = new Date(this.startTime.getTime() - 15 * 60 * 1000);
 
-    // NEW: Log snapshot post-booking for post-show analysis
-    const soldSeats = this.availableSeats.filter(s => s && s.isBooked).length;  // UPDATED: Non-null + booked
-    const standardPrice = this.calculatePrice('Standard');
-    const premiumPrice = this.calculatePrice('Premium');
-    const standardSold = this.availableSeats.filter(s => s && s.isBooked && s.seatType === 'Standard').length;  // UPDATED
-    const premiumSold = this.availableSeats.filter(s => s && s.isBooked && s.seatType === 'Premium').length;  // UPDATED
-    const revenue = (standardSold * standardPrice) + (premiumSold * premiumPrice);
-
-    this.pricingHistory.push({
-      timestamp: new Date(),
-      soldSeats,
-      calculatedPrice: { 
-        standard: standardPrice, 
-        premium: premiumPrice 
-      },
-      revenue
-    });
-
-    await this.save();
-    return { success: true, booked: seatIds };
+  if (now > bookingCutoff) {
+    throw new Error("Booking closed: Show has started or starts soon.");
   }
+
+  // Optional: Explicit status check (extra safety)
+  if (this.status === 'Live' || this.status === 'Completed') {
+    throw new Error("Cannot book seats for a live or completed show.");
+  }
+
+  // ... rest of your existing seat booking logic (unchanged)
+  const notAvailable = [];
+  this.availableSeats.forEach(seat => {
+    if (seatIds.includes(seat?.seatNumber)) {
+      if (!seat) {
+        notAvailable.push('Aisle (non-bookable)');
+        return;
+      }
+      if (seat.isBooked) {
+        notAvailable.push(seat.seatNumber);
+      } else {
+        seat.isBooked = true;
+      }
+    }
+  });
+
+  if (notAvailable.length > 0) {
+    throw new Error(`Seats not available: ${notAvailable.join(", ")}`);
+  }
+
+  // ... rest of pricingHistory logging and save
+}
 
   async cancelBooking(seatIds) {
     this.availableSeats.forEach(seat => {
@@ -326,7 +330,45 @@ class ShowClass {
       time: `${c.startTime.toLocaleTimeString()} - ${c.endTime.toLocaleTimeString()}` 
     }));
   }
+
+  // Inside ShowClass in models/Show.js
+
+static async updateAllShowStatuses() {
+  const now = new Date();
+
+  // Update shows that have started but not ended → Live
+  await this.updateMany(
+    {
+      startTime: { $lte: now },
+      endTime: { $gt: now },
+      status: { $ne: 'Live' }
+    },
+    { $set: { status: 'Live' } }
+  );
+
+  // Update shows that have ended → Completed
+  await this.updateMany(
+    {
+      endTime: { $lte: now },
+      status: { $ne: 'Completed' }
+    },
+    { $set: { status: 'Completed' } }
+  );
+
+  // Optional: Reset any future shows back to Upcoming (in case of manual override)
+  await this.updateMany(
+    {
+      startTime: { $gt: now },
+      status: { $ne: 'Upcoming' }
+    },
+    { $set: { status: 'Upcoming' } }
+  );
+
+  console.log(`Show statuses updated at ${now.toISOString()}`);
 }
+}
+
+
 
 // Attach class
 showSchema.loadClass(ShowClass);

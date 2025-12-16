@@ -100,7 +100,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
         isOpen ? 'flex items-center justify-between' : 'flex justify-center'
       }`}>
         {/* Title - Hidden when closed */}
-        {isOpen && <h2 className="text-lg font-bold text-[#2E2E2E] flex-1"><img src="/images/logoGreen.png" alt="Admin Panel" /></h2>}
+        {isOpen && <h2 className="text-lg font-bold text-[#2E2E2E] flex-1"><img src="/images/logoBlack.png" alt="Admin Panel" /></h2>}
         
         {/* Toggle Button */}
         <button
