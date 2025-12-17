@@ -161,7 +161,7 @@ const ScheduleShow = () => {
         await addShow(showData);
         toast.success('Show scheduled successfully!');
       }
-      setTimeout(() => navigate('/admin/shows'), 1500);
+      setTimeout(() => navigate('/admin/shows/list'), 1500);
     } catch (err) {
       console.error('Submit error:', err.response?.data);
       toast.error(err.response?.data?.message || 'Failed to save show');

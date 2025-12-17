@@ -125,19 +125,45 @@ export const addShow = async (req, res) => {
 // ---------------------------
 // Get all shows (with optional status filter)
 // ---------------------------
+// ---------------------------
+// Get all shows (with optional status filter)
+// ---------------------------
 export const getAllShows = async (req, res) => {
   try {
-    const { status } = req.query; // e.g., ?status=Live or ?status=Upcoming
+    const { status, movieId } = req.query;
 
     const filter = {};
+    if (movieId) filter.movieId = movieId;
     if (status && ['Upcoming', 'Live', 'Completed'].includes(status)) {
       filter.status = status;
     }
 
-    const shows = await Show.find(filter)
+    let shows = await Show.find(filter)
       .populate("movieId")
       .populate("screenId")
-      .sort({ startTime: 1 }); // Optional: sort by time
+      .sort({ startTime: 1 });
+
+    // ADD THESE CONSOLE LOGS TO SEE WHAT'S BEING SENT
+    shows = shows.map(show => {
+      const plain = show.toObject();
+
+      const standardPrice = show.calculatePrice('Standard');
+      const premiumPrice = show.calculatePrice('Premium');
+
+      plain.currentStandardPrice = standardPrice;
+      plain.currentPremiumPrice = premiumPrice;
+
+      // LOG EACH SHOW'S CALCULATED PRICES
+      console.log(`[Backend] Sending show ${show._id}:`);
+      console.log(`   Standard Price: ${standardPrice} NPR`);
+      console.log(`   Premium Price: ${premiumPrice} NPR`);
+      console.log(`   Base: ${show.pricingRules.standardBasePrice}, Alpha: ${show.pricingRules.alpha}, Beta: ${show.pricingRules.beta}`);
+      console.log(`   Sold seats: ${show.availableSeats.filter(s => s && s.isBooked).length}/${show.totalSeatCount}`);
+      console.log(`   Time to show (hours): ${Math.round((new Date(show.startTime) - Date.now()) / (1000 * 60 * 60))}h`);
+      console.log('---');
+
+      return plain;
+    });
 
     res.json(shows);
   } catch (err) {
@@ -145,17 +171,14 @@ export const getAllShows = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
-
 // ---------------------------
 // Get show by ID
 // ---------------------------
 export const getShowById = async (req, res) => {
   try {
     const { id } = req.params;
-    console.log('Fetching show with ID:', id);  // Log incoming ID
 
     if (!mongoose.isValidObjectId(id)) {
-      console.log('Invalid ID rejected:', id);  // Confirm rejection
       return res.status(400).json({ message: 'Invalid show ID format' });
     }
 
@@ -164,15 +187,20 @@ export const getShowById = async (req, res) => {
       .populate("screenId");
     
     if (!show) {
-      console.log('Show not found for ID:', id);  // Log not found
       return res.status(404).json({ message: "Show not found" });
     }
-    
-    console.log('Show fetched successfully:', show._id);  // Success log
-    res.json(show);
+
+    // Convert to plain object FIRST
+    const plainShow = show.toObject();
+
+    // Then call methods on the ORIGINAL document (this is the key fix)
+    plainShow.currentStandardPrice = show.calculatePrice('Standard');
+    plainShow.currentPremiumPrice = show.calculatePrice('Premium');
+
+    res.json(plainShow);
   } catch (err) {
-    console.error('Get show by ID error for ID', req.params.id, ':', err);  // Detailed error log
-    res.status(500).json({ error: 'Internal server error while fetching show' });
+    console.error('Get show by ID error:', err);
+    res.status(500).json({ error: err.message });
   }
 };
 

@@ -84,6 +84,46 @@ useEffect(() => {
     fetchMovie();
   }, [movieId, navigate]);
 
+  useEffect(() => {
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [theatersData, showsData] = await Promise.all([
+        getAllTheaters(),
+        getAllShows({ movieId })
+      ]);
+
+      const movieShows = showsData.filter(show =>
+        getIdString(show.movieId) === movieId
+      );
+
+      // ADD THIS DEBUG LOG
+      console.log('Raw shows from backend:', movieShows);
+      movieShows.forEach((show, i) => {
+        console.log(`Show ${i + 1}:`, {
+          id: show._id,
+          startTime: show.startTime,
+          status: show.status,
+          pricingRules: show.pricingRules,
+          totalSeatCount: show.totalSeatCount,
+          bookedSeats: show.availableSeats.filter(s => s && s.isBooked).length,
+          createdAt: show.createdAt
+        });
+      });
+
+      setTheaters(theatersData);
+      setShows(movieShows);
+      setError(null);
+    } catch (err) {
+      // ... error handling
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (movieId) fetchData();
+}, [movieId]);
+
   // Fetch theaters and shows
   useEffect(() => {
     const fetchData = async () => {
@@ -211,29 +251,23 @@ const filteredShows = shows.filter(show => {
   };
 
   // Calculate total amount dynamically
-  const calculateTotal = () => {
-    if (selectedSeats.length === 0 || !selectedShow?.fullShow?.pricingRules) return 0;
+const calculateTotal = () => {
+  if (selectedSeats.length === 0 || !selectedShow?.fullShow) return 0;
 
-    const rules = selectedShow.fullShow.pricingRules;
-    const totalSeats = selectedShow.fullShow.totalSeatCount || 154;
-    const bookedCount = selectedShow.fullShow.availableSeats.filter(s => s && s.isBooked).length;
-    const bookedRatio = bookedCount / totalSeats;
+  const show = selectedShow.fullShow;
 
-    const multiplier = 1 + rules.alpha + (rules.beta * bookedRatio);
+  const standardPrice = show.currentStandardPrice;
+  const premiumPrice = show.currentPremiumPrice;
 
-    const standardPrice = Math.round(rules.standardBasePrice * multiplier);
-    const premiumPrice = Math.round(rules.premiumBasePrice * multiplier);
+  const standardSelected = selectedSeats.filter(seatNum => {
+    const def = getScreenLayout()?.flat().find(sd => sd && sd.seatNumber === seatNum);
+    return def && def.type !== 'Premium';
+  }).length;
 
-    const standardSelected = selectedSeats.filter(seatNum => {
-      const def = getScreenLayout()?.flat().find(sd => sd && sd.seatNumber === seatNum);
-      return def && def.type !== 'Premium';
-    }).length;
+  const premiumSelected = selectedSeats.length - standardSelected;
 
-    const premiumSelected = selectedSeats.length - standardSelected;
-
-    return (standardSelected * standardPrice) + (premiumSelected * premiumPrice);
-  };
-
+  return (standardSelected * standardPrice) + (premiumSelected * premiumPrice);
+};
   const totalAmount = calculateTotal();
 
   // Handle payment gateway redirection
@@ -536,56 +570,53 @@ const filteredShows = shows.filter(show => {
               </div>
 
               {/* Dynamic Price Breakdown */}
-              {selectedSeats.length > 0 && selectedShow.fullShow.pricingRules && (
-                (() => {
-                  const rules = selectedShow.fullShow.pricingRules;
-                  const totalSeats = selectedShow.fullShow.totalSeatCount || 154;
-                  const bookedCount = selectedShow.fullShow.availableSeats.filter(s => s && s.isBooked).length;
-                  const bookedRatio = bookedCount / totalSeats;
+             {/* Clean Price Breakdown using backend-calculated prices */}
+{/* Clean Price Breakdown using backend-calculated prices */}
+{selectedSeats.length > 0 && selectedShow?.fullShow && (
+  (() => {
+    const show = selectedShow.fullShow;
 
-                  const multiplier = 1 + rules.alpha + (rules.beta * bookedRatio);
+    const standardPrice = show.currentStandardPrice;
+    const premiumPrice = show.currentPremiumPrice;
 
-                  const standardPrice = Math.round(rules.standardBasePrice * multiplier);
-                  const premiumPrice = Math.round(rules.premiumBasePrice * multiplier);
+    // Calculate selected counts here (same as in calculateTotal)
+    const standardSelected = selectedSeats.filter(seatNum => {
+      const def = getScreenLayout()?.flat().find(sd => sd && sd.seatNumber === seatNum);
+      return def && def.type !== 'Premium';
+    }).length;
 
-                  const standardSelected = selectedSeats.filter(seatNum => {
-                    const def = getScreenLayout()?.flat().find(sd => sd && sd.seatNumber === seatNum);
-                    return def && def.type !== 'Premium';
-                  }).length;
+    const premiumSelected = selectedSeats.length - standardSelected;
 
-                  const premiumSelected = selectedSeats.length - standardSelected;
-
-                  const total = (standardSelected * standardPrice) + (premiumSelected * premiumPrice);
-
-                  return (
-                    <div className="bg-white/10 rounded-xl p-6 mb-6 text-lg border border-white/20">
-                      <div className="space-y-3">
-                        {standardSelected > 0 && (
-                          <div className="flex justify-between">
-                            <span>Standard Seats ({standardSelected}) × NPR {standardPrice}</span>
-                            <span>NPR {standardSelected * standardPrice}</span>
-                          </div>
-                        )}
-                        {premiumSelected > 0 && (
-                          <div className="flex justify-between">
-                            <span>Premium Seats ({premiumSelected}) × NPR {premiumPrice}</span>
-                            <span>NPR {premiumSelected * premiumPrice}</span>
-                          </div>
-                        )}
-                        <div className="flex justify-between font-bold text-xl mt-4 pt-4 border-t border-white/30">
-                          <span>Total Amount</span>
-                          <span>NPR {total}</span>
-                        </div>
-                        {bookedRatio > 0.5 && (
-                          <p className="text-orange-400 text-sm text-center mt-3">
-                            ⚡ High demand! Prices increased by {Math.round((multiplier - 1) * 100)}%
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })()
-              )}
+    return (
+      <div className="bg-white/10 rounded-xl p-6 mb-6 text-lg border border-white/20">
+        <div className="space-y-3">
+          {standardSelected > 0 && (
+            <div className="flex justify-between">
+              <span>Standard Seats ({standardSelected}) × NPR {standardPrice}</span>
+              <span>NPR {standardSelected * standardPrice}</span>
+            </div>
+          )}
+          {premiumSelected > 0 && (
+            <div className="flex justify-between">
+              <span>Premium Seats ({premiumSelected}) × NPR {premiumPrice}</span>
+              <span>NPR {premiumSelected * premiumPrice}</span>
+            </div>
+          )}
+          <div className="flex justify-between font-bold text-xl mt-4 pt-4 border-t border-white/30">
+            <span>Total Amount</span>
+            <span>NPR {totalAmount}</span>
+          </div>
+          {/* Optional note if price is elevated */}
+          {(standardPrice > show.pricingRules.standardBasePrice || premiumPrice > show.pricingRules.premiumBasePrice) && (
+            <p className="text-orange-400 text-sm text-center mt-3">
+              ⚡ Dynamic pricing applied (demand or time urgency)
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  })()
+)}
 
               {/* Payment Method Selection */}
               {selectedSeats.length > 0 && (

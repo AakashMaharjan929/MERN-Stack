@@ -207,10 +207,26 @@ class ShowClass {
 
     const demandFactor = alpha * (soldSeats / totalSeats) * base;
     
-    // Clamp time factor to [0,1] to avoid NaN/negative
-    const normalizedTime = Math.max(0, Math.min(1, timeToShow / (maxTime || 1))); // Avoid div by zero
-    const timeFactor = beta * (1 - normalizedTime) * base;
-    
+   // NEW: Time factor based on absolute time remaining (much more intuitive)
+const hoursToShow = Math.max(0, (this.startTime - now) / (1000 * 60 * 60));
+
+// Define urgency tiers
+let urgencyMultiplier = 0;
+
+if (hoursToShow <= 2) {
+  urgencyMultiplier = 1.0;        // Last 2 hours: full beta
+} else if (hoursToShow <= 24) {
+  urgencyMultiplier = 0.7;        // Last day: 70%
+} else if (hoursToShow <= 72) {
+  urgencyMultiplier = 0.4;        // Last 3 days: 40%
+} else if (hoursToShow <= 168) {   // 1 week
+  urgencyMultiplier = 0.2;
+} else {
+  urgencyMultiplier = 0;          // More than a week: no time markup
+}
+
+const timeFactor = beta * urgencyMultiplier * base; 
+   
     const price = base + demandFactor + timeFactor;
     
     return Math.round(price);

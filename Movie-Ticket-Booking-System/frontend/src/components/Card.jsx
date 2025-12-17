@@ -10,6 +10,8 @@ const Card = ({ movie }) => {
     setImageSrc('https://picsum.photos/400/600?random=0');
   };
 
+  
+
   const handleBuyTickets = () => {
     const path = movie.tag === 'Now Showing'
       ? `/movies/now-showing?movieId=${movie.id}`

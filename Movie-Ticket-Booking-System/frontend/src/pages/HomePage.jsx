@@ -7,6 +7,7 @@ import Banner from '../components/Banner';
 import Card from '../components/Card';
 import Footer from '../components/Footer';
 import { getAllMovies } from '../api/movieAPI'; // Your real API
+import { getAllShows } from '../api/showAPI';
 
 // Trie for fast prefix-based autocomplete (client-side)
 class Trie {
@@ -48,6 +49,7 @@ const HomePage = () => {
   const [activeTab, setActiveTab] = useState('now-showing');
   const [searchParams, setSearchParams] = useSearchParams();
   const [autocompleteSuggestions, setAutocompleteSuggestions] = useState([]);
+  const [shows, setShows] = useState([]);
   const [movies, setMovies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -62,11 +64,14 @@ const HomePage = () => {
       try {
         setLoading(true);
         const response = await getAllMovies(); // This is likely { data: [...] } or { movies: [...] }
+        const showsResponse = await getAllShows(); // Fetch shows if needed
 
         // Log it once to see the real structure (remove later)
         console.log('API Response:', response);
+        console.log('Shows API Response:', showsResponse);
 
         let movieArray = [];
+        let showArray = [];
 
         // Handle common response patterns
         if (Array.isArray(response)) {
@@ -84,6 +89,17 @@ const HomePage = () => {
         }
 
         setMovies(movieArray);
+
+        if (Array.isArray(showsResponse)) {
+          showArray = showsResponse;
+        } else if (showsResponse && Array.isArray(showsResponse.data)) {
+          showArray = showsResponse.data;
+        } else {
+          console.error('Unexpected shows data structure:', showsResponse);
+          toast.error('Invalid shows data received from server');
+          showArray = [];
+        }
+        setShows(showArray);
         setError(null);
       } catch (err) {
         console.error('Failed to fetch movies:', err);
@@ -140,9 +156,73 @@ const HomePage = () => {
     navigate('/', { replace: true });
   };
 
-  // Categorize movies
-  const nowShowingMovies = movies.filter(m => m.status === 'Now Showing');
-  const upcomingMovies = movies.filter(m => m.status === 'Upcoming');
+  // DEBUG VERSION - Add this to see what's going wrong
+useEffect(() => {
+  if (movies.length === 0 || shows.length === 0) return;
+
+  console.log('=== SUPER DETAILED ID DEBUG ===');
+  console.log('Total movies:', movies.length);
+  console.log('Total shows:', shows.length);
+
+  const nowShowingMovie = movies.find(m => m.status === 'Now Showing');
+  if (!nowShowingMovie) {
+    console.log('No movie with "Now Showing" status found.');
+    return;
+  }
+
+  // Print movie _id in full detail
+  console.log('Movie title:', nowShowingMovie.title);
+  console.log('Movie _id raw:', nowShowingMovie._id);
+  console.log('Movie _id type:', typeof nowShowingMovie._id);
+  console.log('Movie _id (JSON stringified):', JSON.stringify(nowShowingMovie._id));
+
+  // Print ALL shows' movieId details
+  shows.forEach((show, index) => {
+    console.log(`Show ${index + 1}:`);
+    console.log('   show.movieId raw:', show.movieId);
+    console.log('   show.movieId type:', typeof show.movieId);
+    console.log('   show.movieId (JSON):', JSON.stringify(show.movieId));
+    console.log('   show.status:', show.status);
+  });
+
+  // Test different extraction methods
+  const movieIdCandidates = [
+    nowShowingMovie._id,
+    nowShowingMovie._id?.$oid,
+    JSON.stringify(nowShowingMovie._id)
+  ];
+
+  console.log('Trying to match movie ID with these candidates:', movieIdCandidates);
+
+  shows.forEach(show => {
+    const showIdCandidates = [
+      show.movieId,
+      show.movieId?.$oid,
+      JSON.stringify(show.movieId)
+    ];
+    console.log('Show movieId candidates:', showIdCandidates);
+  });
+
+  console.log('=== END SUPER DEBUG ===');
+}, [movies, shows]);
+const nowShowingMovies = movies.filter(movie => {
+  if (movie.status !== 'Now Showing') return false;
+
+  const movieId = movie._id; // it's already a string
+
+  // Check if any show for this movie has status "Upcoming" or "Live"
+  return shows.some(show => {
+    // Since movieId is populated as full object, get the _id from it
+    const showMovieId = show.movieId?._id;
+
+    return (
+      showMovieId === movieId &&
+      (show.status === 'Upcoming' || show.status === 'Live')
+    );
+  });
+});
+
+const upcomingMovies = movies.filter(movie => movie.status === 'Upcoming');
 
   // Search results
   const searchResults = useMemo(() => {
