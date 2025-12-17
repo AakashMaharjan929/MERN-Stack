@@ -1,5 +1,6 @@
 // Updated AppRoutes.jsx - Added BookingsLayout with nested routes for cancellations/refunds, ticket history, and revenue breakdown
 import { BrowserRouter, Routes, Route, Navigate, Link } from 'react-router-dom';
+import PublicLayout from '../layouts/PublicLayout';
 import HomePage from '../pages/HomePage';
 import RegisterPage from '../pages/RegisterPage';
 import LoginPage from '../pages/LoginPage';

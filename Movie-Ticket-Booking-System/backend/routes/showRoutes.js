@@ -14,6 +14,7 @@ import {
   checkConflicts,
   suggestFactors, // New import
   optimizeShow, // NEW: Import for manual optimization
+  refreshShowStatuses, // New import
 } from "../controllers/showController.js";
 
 const router = express.Router();
@@ -21,6 +22,10 @@ const router = express.Router();
 // ---------------------------
 // Show Routes
 // ---------------------------
+
+
+// routes/show.js
+router.get('/refresh-statuses', refreshShowStatuses);
 
 // Add a new show
 router.post("/", addShow);
@@ -58,5 +63,7 @@ router.post("/:id/book", bookSeats);
 
 // Cancel booked seats
 router.post("/:id/cancel", cancelSeats);
+
+
 
 export default router;

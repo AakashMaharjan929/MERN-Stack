@@ -59,10 +59,11 @@ const NowShowing = () => {
 
   const dates = getDates();
 
-  useEffect(() => {
-    setSelectedDate(dates[0]); // Today
-  }, []);
+useEffect(() => {
 
+    setSelectedDate(dates[0]); // Today
+  
+}, []);
   // Fetch movie
   useEffect(() => {
     if (!movieId) {
@@ -116,20 +117,26 @@ const NowShowing = () => {
   const cities = ['all', ...new Set(theaters.map(t => t.location.city))].sort();
 
   // Filter shows
-  const filteredShows = shows.filter(show => {
-    const showDate = new Date(show.startTime).toISOString().split('T')[0];
-    const theater = theaters.find(t =>
-      t.screens.some(screen => getIdString(screen) === getIdString(show.screenId))
-    );
-    const showCity = theater?.location.city;
+const filteredShows = shows.filter(show => {
+  if (!['Upcoming'].includes(show.status)) return false;
 
-    const matchesCity = selectedCity === "all" || showCity === selectedCity;
-    const matchesDate = selectedDate && showDate === selectedDate.date;
-    const matchesLang = selectedLanguage === "all" || show.showType === selectedLanguage;
+  const showDateStr = new Date(show.startTime).toISOString().split('T')[0];
+  if (!selectedDate) return false;
 
-    return matchesCity && matchesDate && matchesLang;
-  });
+  if (showDateStr !== selectedDate.date) return false;
 
+  const theater = theaters.find(t =>
+    t.screens.some(screen => getIdString(screen) === getIdString(show.screenId))
+  );
+  if (!theater) return false;
+
+  const showCity = theater.location?.city || 'Unknown';
+  if (selectedCity !== "all" && showCity !== selectedCity) return false;
+
+  if (selectedLanguage !== "all" && show.showType !== selectedLanguage) return false;
+
+  return true;
+});
   // Group shows by theater
   const groupedShows = {};
   filteredShows.forEach(show => {

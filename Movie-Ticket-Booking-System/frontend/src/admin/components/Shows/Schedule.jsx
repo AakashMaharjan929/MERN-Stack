@@ -1,16 +1,16 @@
-// ScheduleShow.jsx - Form for scheduling/editing a show (create in /admin/components/Shows)
+// ScheduleShow.jsx - Form for scheduling/editing a show
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useForm, useWatch } from 'react-hook-form';
 import toast, { Toaster } from 'react-hot-toast';
-import { addShow, updateShow, getShowById, suggestFactors } from '../../api/showAPI'; // Adjust path
-import { getAllMovies } from '../../api/movieAPI'; // For fetching movies
-import { getAllScreens } from '../../api/screenAPI'; // For fetching screens
+import { addShow, updateShow, getShowById, suggestFactors } from '../../api/showAPI';
+import { getAllMovies } from '../../api/movieAPI';
+import { getAllScreens } from '../../api/screenAPI';
 
-// Helper to validate ObjectId (24 hex chars)
+// Helper to validate ObjectId
 const isValidObjectId = (str) => /^[0-9a-fA-F]{24}$/.test(str);
 
-// Helper to format Date to local 'YYYY-MM-DDTHH:mm:ss' string (added seconds for consistency)
+// Format Date to local 'YYYY-MM-DDTHH:mm:ss'
 const formatToLocalDateTime = (date) => {
   if (!date || isNaN(date.getTime())) return '';
   const year = date.getFullYear();
@@ -18,12 +18,12 @@ const formatToLocalDateTime = (date) => {
   const day = String(date.getDate()).padStart(2, '0');
   const hours = String(date.getHours()).padStart(2, '0');
   const minutes = String(date.getMinutes()).padStart(2, '0');
-  const seconds = String(date.getSeconds()).padStart(2, '0'); // Added seconds
+  const seconds = String(date.getSeconds()).padStart(2, '0');
   return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
 };
 
 const ScheduleShow = () => {
-  const { id } = useParams(); // For edit mode if id present
+  const { id } = useParams();
   const navigate = useNavigate();
   const isEdit = !!id;
   const [loading, setLoading] = useState(true);
@@ -31,8 +31,9 @@ const ScheduleShow = () => {
   const [movies, setMovies] = useState([]);
   const [screens, setScreens] = useState([]);
   const [rationale, setRationale] = useState('');
+  const [showStatus, setShowStatus] = useState(''); // NEW: Track status
 
-  const { register, handleSubmit, formState: { errors, isSubmitting }, setValue, control } = useForm({
+  const { register, handleSubmit, formState: { errors }, setValue, control } = useForm({
     defaultValues: {
       movieId: '',
       screenId: '',
@@ -47,11 +48,12 @@ const ScheduleShow = () => {
     mode: 'onChange',
   });
 
-  // Watch fields for auto-calc
   const selectedMovieId = useWatch({ control, name: 'movieId' });
   const startTime = useWatch({ control, name: 'startTime' });
 
-  // Fetch all data (movies, screens, and show if editing)
+  // Determine if form is editable
+  const isEditable = !isEdit || showStatus === 'Upcoming';
+
   useEffect(() => {
     const fetchAll = async () => {
       setLoading(true);
@@ -64,17 +66,18 @@ const ScheduleShow = () => {
         setScreens(Array.isArray(screensRes) ? screensRes : []);
 
         if (isEdit) {
-          // Validate ID before fetching
           if (!isValidObjectId(id)) {
             toast.error('Invalid show ID format');
-            navigate('/admin/shows');
+            navigate('/admin/shows/list');
             return;
           }
 
           const show = await getShowById(id);
+          setShowStatus(show.status); // NEW: Store status
+
           setValue('movieId', show.movieId._id);
           setValue('screenId', show.screenId._id);
-          setValue('startTime', formatToLocalDateTime(new Date(show.startTime))); // Now includes seconds
+          setValue('startTime', formatToLocalDateTime(new Date(show.startTime)));
           setValue('endTime', formatToLocalDateTime(new Date(show.endTime)));
           setValue('showType', show.showType);
           setValue('standardBasePrice', show.pricingRules.standardBasePrice);
@@ -83,11 +86,7 @@ const ScheduleShow = () => {
           setValue('timeFactor', show.pricingRules.beta);
         }
       } catch (err) {
-        if (isEdit) {
-          toast.error('Failed to load show');
-        } else {
-          toast.error('Failed to load movies or screens');
-        }
+        toast.error(isEdit ? 'Failed to load show' : 'Failed to load movies or screens');
       } finally {
         setLoading(false);
       }
@@ -95,31 +94,27 @@ const ScheduleShow = () => {
     fetchAll();
   }, [id, isEdit, setValue, navigate]);
 
-  // Optional: Auto-calculate endTime based on movie duration + startTime
+  // Auto-calculate endTime from movie duration
   useEffect(() => {
-    if (selectedMovieId && startTime && !isEdit) { // Skip auto-calc in edit mode to avoid overriding
+    if (selectedMovieId && startTime && !isEdit) {
       const selectedMovie = movies.find(m => m._id === selectedMovieId);
       if (selectedMovie && selectedMovie.duration) {
-        const start = new Date(startTime + ':00'); // Ensure seconds (existing)
-        const durationMs = parseInt(selectedMovie.duration) * 60 * 1000; // minutes to ms
+        const start = new Date(startTime);
+        const durationMs = parseInt(selectedMovie.duration) * 60 * 1000;
         const end = new Date(start.getTime() + durationMs);
-        setValue('endTime', formatToLocalDateTime(end)); // Now includes seconds
+        setValue('endTime', formatToLocalDateTime(end));
       }
     }
   }, [selectedMovieId, startTime, movies, setValue, isEdit]);
 
-  // Auto-suggest factors based on movie and start time (skip in edit mode)
+  // Auto-suggest factors
   useEffect(() => {
     if (selectedMovieId && startTime && !isEdit) {
-      // Validate movieId before suggesting
-      if (!isValidObjectId(selectedMovieId)) {
-        return;
-      }
+      if (!isValidObjectId(selectedMovieId)) return;
 
       const fetchSuggestions = async () => {
         try {
-          // Append :00 to ensure full datetime for API (fixes 400 error)
-          const fullStartTime = startTime + ':00';
+          const fullStartTime = startTime.endsWith(':') ? startTime + '00' : startTime;
           const { suggestedAlpha, suggestedBeta, rationale } = await suggestFactors(selectedMovieId, fullStartTime);
           setValue('demandFactor', suggestedAlpha);
           setValue('timeFactor', suggestedBeta);
@@ -134,61 +129,58 @@ const ScheduleShow = () => {
     }
   }, [selectedMovieId, startTime, isEdit, setValue]);
 
- const onSubmit = async (data) => {
-  setSubmitting(true);
-  try {
-    // Helper to append seconds if missing
-    const appendSecondsIfNeeded = (dtStr) => {
-      if (dtStr.endsWith(':')) {  // e.g., '19:35' ends with ':'
-        return dtStr + '00';
-      }
-      return dtStr;  // Already has :ss (e.g., '20:06:00')
-    };
-
-    const showData = {
-      movieId: data.movieId,
-      screenId: data.screenId,
-      startTime: new Date(appendSecondsIfNeeded(data.startTime)),
-      endTime: new Date(appendSecondsIfNeeded(data.endTime)),
-      showType: data.showType,
-      standardBasePrice: parseFloat(data.standardBasePrice),
-      premiumBasePrice: parseFloat(data.premiumBasePrice),
-      demandFactor: parseFloat(data.demandFactor),
-      timeFactor: parseFloat(data.timeFactor),
-    };
-
-    console.log('API Payload:', showData);  // ADD: Log transformed data for debug
-
-    if (isEdit) {
-      await updateShow(id, showData);
-      toast.success('Show updated successfully!');
-      setTimeout(() => navigate('/admin/shows'), 1500);
-    } else {
-      await addShow(showData);
-      toast.success('Show scheduled successfully!');
-      setTimeout(() => navigate('/admin/shows/list'), 1500);
+  const onSubmit = async (data) => {
+    // Block edit if show is not Upcoming
+    if (isEdit && showStatus !== 'Upcoming') {
+      toast.error('Cannot modify a Live or Completed show');
+      return;
     }
-  } catch (err) {
-    console.error('Submit error details:', err.response?.data);  // ADD: Log exact backend message
-    toast.error(err.response?.data?.message || err.error || 'Failed to save show');
-  } finally {
-    setSubmitting(false);
-  }
-};
 
-  if (loading) return <div className="text-[#6B7280]">Loading show...</div>;
+    setSubmitting(true);
+    try {
+      const appendSecondsIfNeeded = (dtStr) => {
+        return dtStr.length === 16 ? dtStr + ':00' : dtStr; // "YYYY-MM-DDTHH:mm" → add :00
+      };
+
+      const showData = {
+        movieId: data.movieId,
+        screenId: data.screenId,
+        startTime: new Date(appendSecondsIfNeeded(data.startTime)),
+        endTime: new Date(appendSecondsIfNeeded(data.endTime)),
+        showType: data.showType,
+        standardBasePrice: parseFloat(data.standardBasePrice),
+        premiumBasePrice: parseFloat(data.premiumBasePrice),
+        demandFactor: parseFloat(data.demandFactor),
+        timeFactor: parseFloat(data.timeFactor),
+      };
+
+      if (isEdit) {
+        await updateShow(id, showData);
+        toast.success('Show updated successfully!');
+      } else {
+        await addShow(showData);
+        toast.success('Show scheduled successfully!');
+      }
+      setTimeout(() => navigate('/admin/shows'), 1500);
+    } catch (err) {
+      console.error('Submit error:', err.response?.data);
+      toast.error(err.response?.data?.message || 'Failed to save show');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (loading) return <div className="text-[#6B7280] text-center py-10">Loading...</div>;
 
   return (
     <>
-      <Toaster 
-        position="top-right"
-        toastOptions={{
-          duration: 4000,
-          style: { background: '#fff', color: '#2E2E2E', border: '1px solid #E5E7EB' },
-          success: { style: { background: '#F0FDF4', color: '#065F46' } },
-          error: { style: { background: '#FEF2F2', color: '#991B1B' } },
-        }}
-      />
+      <Toaster position="top-right" toastOptions={{
+        duration: 4000,
+        style: { background: '#fff', color: '#2E2E2E', border: '1px solid #E5E7EB' },
+        success: { style: { background: '#F0FDF4', color: '#065F46' } },
+        error: { style: { background: '#FEF2F2', color: '#991B1B' } },
+      }} />
+
       <div className="flex justify-center items-start min-h-screen py-8 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-white to-[#F5F6FA]">
         <div className="max-w-4xl w-full space-y-8">
           <div className="bg-white shadow-xl rounded-2xl p-6 md:p-8 border border-[#E5E7EB]/50">
@@ -201,15 +193,43 @@ const ScheduleShow = () => {
               </h2>
               <p className="text-[#6B7280] text-sm">Fill in the details below</p>
             </div>
+
+            {/* Current Status Badge - Edit Mode Only */}
+            {isEdit && (
+              <div className="mb-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-[#6B7280]">Current Status:</span>
+                  <span className={`px-4 py-2 rounded-full text-sm font-semibold ${
+                    showStatus === 'Upcoming' ? 'bg-green-100 text-green-800' :
+                    showStatus === 'Live' ? 'bg-yellow-100 text-yellow-800' :
+                    showStatus === 'Completed' ? 'bg-red-100 text-red-800' :
+                    'bg-gray-100 text-gray-800'
+                  }`}>
+                    {showStatus || 'Unknown'}
+                  </span>
+                </div>
+                {!isEditable && (
+                  <p className="text-xs text-amber-700 mt-2">
+                    This show is {showStatus.toLowerCase()} and cannot be modified.
+                  </p>
+                )}
+              </div>
+            )}
+
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-              {/* Movie & Screen Selection */}
+              {/* Movie & Screen */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="relative">
+                <div>
                   <label className="block text-[#6B7280] text-sm font-medium mb-2">Movie</label>
                   <select
                     {...register('movieId', { required: 'Movie is required' })}
-                    className={`w-full pl-10 pr-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
-                      errors.movieId ? 'border-red-500 focus:ring-red-500' : 'border-[#E5E7EB] focus:ring-[#16A34A]'
+                    disabled={!isEditable}
+                    className={`w-full pl-10 pr-4 py-3 border rounded-xl transition-all ${
+                      !isEditable
+                        ? 'bg-gray-100 border-gray-300 cursor-not-allowed'
+                        : errors.movieId
+                        ? 'border-red-500 focus:ring-red-500'
+                        : 'border-[#E5E7EB] focus:outline-none focus:ring-2 focus:ring-[#16A34A]'
                     }`}
                   >
                     <option value="">Select Movie</option>
@@ -221,18 +241,24 @@ const ScheduleShow = () => {
                   </select>
                   {errors.movieId && <p className="mt-1 text-red-600 text-xs">{errors.movieId.message}</p>}
                 </div>
-                <div className="relative">
+
+                <div>
                   <label className="block text-[#6B7280] text-sm font-medium mb-2">Screen</label>
                   <select
                     {...register('screenId', { required: 'Screen is required' })}
-                    className={`w-full pl-10 pr-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
-                      errors.screenId ? 'border-red-500 focus:ring-red-500' : 'border-[#E5E7EB] focus:ring-[#16A34A]'
+                    disabled={!isEditable}
+                    className={`w-full pl-10 pr-4 py-3 border rounded-xl transition-all ${
+                      !isEditable
+                        ? 'bg-gray-100 border-gray-300 cursor-not-allowed'
+                        : errors.screenId
+                        ? 'border-red-500 focus:ring-red-500'
+                        : 'border-[#E5E7EB] focus:outline-none focus:ring-2 focus:ring-[#16A34A]'
                     }`}
                   >
-                    <option value="">Select Movie</option>
+                    <option value="">Select Screen</option> {/* FIXED */}
                     {screens.map((screen) => (
                       <option key={screen._id} value={screen._id}>
-                        {screen.name} ({screen.theaterId?.name || 'Unknown Theater'}) - {screen.totalSeats || 0} seats
+                        {screen.name} ({screen.theaterId?.name || 'Unknown'}) - {screen.totalSeats || 0} seats
                       </option>
                     ))}
                   </select>
@@ -240,121 +266,167 @@ const ScheduleShow = () => {
                 </div>
               </div>
 
-              {/* Start Time & End Time */}
+              {/* Start & End Time */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="relative">
+                <div>
                   <label className="block text-[#6B7280] text-sm font-medium mb-2">Start Time</label>
                   <input
                     type="datetime-local"
                     {...register('startTime', { required: 'Start time is required' })}
-                    className={`w-full p-3 border border-[#E5E7EB] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#16A34A] ${
-                      errors.startTime ? 'border-red-500 focus:ring-red-500' : ''
+                    disabled={!isEditable}
+                    className={`w-full p-3 border rounded-xl ${
+                      !isEditable
+                        ? 'bg-gray-100 border-gray-300 cursor-not-allowed'
+                        : errors.startTime
+                        ? 'border-red-500'
+                        : 'border-[#E5E7EB] focus:outline-none focus:ring-2 focus:ring-[#16A34A]'
                     }`}
                   />
                   {errors.startTime && <p className="mt-1 text-red-600 text-xs">{errors.startTime.message}</p>}
                 </div>
-                <div className="relative">
+
+                <div>
                   <label className="block text-[#6B7280] text-sm font-medium mb-2">End Time</label>
                   <input
                     type="datetime-local"
-                    {...register('endTime', { required: 'End time is required', validate: (value, formValues) => value > formValues.startTime || 'End time must be after start time' })}
-                    className={`w-full p-3 border border-[#E5E7EB] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#16A34A] ${
-                      errors.endTime ? 'border-red-500 focus:ring-red-500' : ''
+                    {...register('endTime', {
+                      required: 'End time is required',
+                      validate: (value, formValues) => value > formValues.startTime || 'End time must be after start time'
+                    })}
+                    disabled={!isEditable}
+                    className={`w-full p-3 border rounded-xl ${
+                      !isEditable
+                        ? 'bg-gray-100 border-gray-300 cursor-not-allowed'
+                        : errors.endTime
+                        ? 'border-red-500'
+                        : 'border-[#E5E7EB] focus:outline-none focus:ring-2 focus:ring-[#16A34A]'
                     }`}
                   />
                   {errors.endTime && <p className="mt-1 text-red-600 text-xs">{errors.endTime.message}</p>}
-                  <p className="text-xs text-[#6B7280] mt-1">{isEdit ? '' : 'Auto-calculated based on movie duration'}</p>
+                  {!isEdit && <p className="text-xs text-[#6B7280] mt-1">Auto-calculated from movie duration</p>}
                 </div>
               </div>
 
-              {/* Show Type & Standard Base Price */}
+              {/* Show Type & Standard Price */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="relative">
+                <div>
                   <label className="block text-[#6B7280] text-sm font-medium mb-2">Show Type</label>
                   <select
-                    {...register('showType', { required: 'Show type is required' })}
-                    className="w-full p-3 border border-[#E5E7EB] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#16A34A]"
+                    {...register('showType')}
+                    disabled={!isEditable}
+                    className={`w-full p-3 border rounded-xl ${
+                      !isEditable ? 'bg-gray-100 border-gray-300 cursor-not-allowed' : 'border-[#E5E7EB] focus:ring-[#16A34A]'
+                    }`}
                   >
                     <option value="Regular">Regular</option>
                     <option value="Special">Special</option>
                   </select>
-                  {errors.showType && <p className="mt-1 text-red-600 text-xs">{errors.showType.message}</p>}
                 </div>
-                <div className="relative">
+
+                <div>
                   <label className="block text-[#6B7280] text-sm font-medium mb-2">Standard Base Price</label>
                   <input
                     type="number"
                     step="0.01"
                     min="0"
-                    {...register('standardBasePrice', { required: 'Standard base price is required', min: 0 })}
-                    className={`w-full p-3 border border-[#E5E7EB] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#16A34A] ${
-                      errors.standardBasePrice ? 'border-red-500 focus:ring-red-500' : ''
-                    }`}
+                    {...register('standardBasePrice', { required: 'Required', min: 0 })}
+                    disabled={!isEditable}
                     placeholder="e.g., 200"
+                    className={`w-full p-3 border rounded-xl ${
+                      !isEditable
+                        ? 'bg-gray-100 border-gray-300 cursor-not-allowed'
+                        : errors.standardBasePrice
+                        ? 'border-red-500'
+                        : 'border-[#E5E7EB] focus:ring-[#16A34A]'
+                    }`}
                   />
                   {errors.standardBasePrice && <p className="mt-1 text-red-600 text-xs">{errors.standardBasePrice.message}</p>}
                 </div>
               </div>
 
-              {/* Premium Base Price & Demand Factor */}
+              {/* Premium Price & Demand Factor */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="relative">
+                <div>
                   <label className="block text-[#6B7280] text-sm font-medium mb-2">Premium Base Price</label>
                   <input
                     type="number"
                     step="0.01"
                     min="0"
-                    {...register('premiumBasePrice', { required: 'Premium base price is required', min: 0 })}
-                    className={`w-full p-3 border border-[#E5E7EB] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#16A34A] ${
-                      errors.premiumBasePrice ? 'border-red-500 focus:ring-red-500' : ''
-                    }`}
+                    {...register('premiumBasePrice', { required: 'Required', min: 0 })}
+                    disabled={!isEditable}
                     placeholder="e.g., 300"
+                    className={`w-full p-3 border rounded-xl ${
+                      !isEditable
+                        ? 'bg-gray-100 border-gray-300 cursor-not-allowed'
+                        : errors.premiumBasePrice
+                        ? 'border-red-500'
+                        : 'border-[#E5E7EB] focus:ring-[#16A34A]'
+                    }`}
                   />
                   {errors.premiumBasePrice && <p className="mt-1 text-red-600 text-xs">{errors.premiumBasePrice.message}</p>}
                 </div>
-                <div className="relative">
-                  <label className="block text-[#6B7280] text-sm font-medium mb-2">Demand Factor (alpha)</label>
+
+                <div>
+                  <label className="block text-[#6B7280] text-sm font-medium mb-2">Demand Factor (α)</label>
                   <input
                     type="number"
                     step="0.01"
                     min="0"
                     max="1"
-                    {...register('demandFactor', { required: 'Demand factor is required', min: 0, max: 1 })}
-                    className={`w-full p-3 border border-[#E5E7EB] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#16A34A] ${
-                      errors.demandFactor ? 'border-red-500 focus:ring-red-500' : ''
-                    }`}
+                    {...register('demandFactor', { required: 'Required', min: 0, max: 1 })}
+                    disabled={!isEditable}
                     placeholder="e.g., 0.1"
+                    className={`w-full p-3 border rounded-xl ${
+                      !isEditable
+                        ? 'bg-gray-100 border-gray-300 cursor-not-allowed'
+                        : errors.demandFactor
+                        ? 'border-red-500'
+                        : 'border-[#E5E7EB] focus:ring-[#16A34A]'
+                    }`}
                   />
                   {errors.demandFactor && <p className="mt-1 text-red-600 text-xs">{errors.demandFactor.message}</p>}
-                  <p className="text-xs text-[#6B7280] mt-1">0-1 scale for dynamic pricing</p>
                 </div>
               </div>
 
-              {/* Time Factor */}
-              <div className="relative">
-                <label className="block text-[#6B7280] text-sm font-medium mb-2">Time Factor (beta)</label>
+              {/* Time Factor + Rationale */}
+              <div>
+                <label className="block text-[#6B7280] text-sm font-medium mb-2">Time Factor (β)</label>
                 <input
                   type="number"
                   step="0.01"
                   min="0"
                   max="1"
-                  {...register('timeFactor', { required: 'Time factor is required', min: 0, max: 1 })}
-                  className={`w-full p-3 border border-[#E5E7EB] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#16A34A] ${
-                    errors.timeFactor ? 'border-red-500 focus:ring-red-500' : ''
-                  }`}
+                  {...register('timeFactor', { required: 'Required', min: 0, max: 1 })}
+                  disabled={!isEditable}
                   placeholder="e.g., 0.05"
+                  className={`w-full p-3 border rounded-xl ${
+                    !isEditable
+                      ? 'bg-gray-100 border-gray-300 cursor-not-allowed'
+                      : errors.timeFactor
+                      ? 'border-red-500'
+                      : 'border-[#E5E7EB] focus:ring-[#16A34A]'
+                  }`}
                 />
                 {errors.timeFactor && <p className="mt-1 text-red-600 text-xs">{errors.timeFactor.message}</p>}
-                <p className="text-xs text-[#6B7280] mt-1">0-1 scale for dynamic pricing</p>
-                {rationale && <p className="text-xs text-[#6B7280] mt-1 italic">{rationale}</p>}
+
+                {rationale && (
+                  <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                    <p className="text-sm font-medium text-blue-800 mb-1">AI Pricing Suggestion</p>
+                    <p className="text-xs text-blue-700 italic">{rationale}</p>
+                  </div>
+                )}
               </div>
 
               <button
                 type="submit"
-                disabled={isSubmitting || submitting}
-                className="w-full bg-gradient-to-r from-[#16A34A] to-[#22C55E] text-white py-3 rounded-xl font-semibold text-base shadow-lg hover:shadow-xl hover:from-[#065F46] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center"
+                disabled={submitting || !isEditable}
+                className={`w-full py-3 rounded-xl font-semibold text-base shadow-lg transition-all duration-200 flex items-center justify-center ${
+                  !isEditable
+                    ? 'bg-gray-400 cursor-not-allowed text-gray-200'
+                    : 'bg-gradient-to-r from-[#16A34A] to-[#22C55E] text-white hover:from-[#065F46] hover:shadow-xl'
+                }`}
               >
-                {isSubmitting || submitting ? (
+                {submitting ? (
                   <>
                     <i className="fas fa-spinner fa-spin mr-2"></i>
                     Saving...
@@ -367,11 +439,12 @@ const ScheduleShow = () => {
                 )}
               </button>
             </form>
+
             <div className="mt-6 text-center">
               <button
                 type="button"
                 onClick={() => navigate('/admin/shows')}
-                className="text-[#6B7280] hover:text-[#16A34A] text-sm font-medium transition-colors duration-200"
+                className="text-[#6B7280] hover:text-[#16A34A] text-sm font-medium transition-colors"
               >
                 ← Back to Shows
               </button>

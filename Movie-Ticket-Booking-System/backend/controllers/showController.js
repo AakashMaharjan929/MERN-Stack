@@ -122,11 +122,23 @@ export const addShow = async (req, res) => {
 // ---------------------------
 // Get all shows
 // ---------------------------
+// ---------------------------
+// Get all shows (with optional status filter)
+// ---------------------------
 export const getAllShows = async (req, res) => {
   try {
-    const shows = await Show.find()
+    const { status } = req.query; // e.g., ?status=Live or ?status=Upcoming
+
+    const filter = {};
+    if (status && ['Upcoming', 'Live', 'Completed'].includes(status)) {
+      filter.status = status;
+    }
+
+    const shows = await Show.find(filter)
       .populate("movieId")
-      .populate("screenId");
+      .populate("screenId")
+      .sort({ startTime: 1 }); // Optional: sort by time
+
     res.json(shows);
   } catch (err) {
     console.error('Get all shows error:', err);
@@ -169,22 +181,31 @@ export const getShowById = async (req, res) => {
 // ---------------------------
 export const bookSeats = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { seatIds } = req.body;
-
-    if (!mongoose.isValidObjectId(id)) {
-      return res.status(400).json({ message: 'Invalid show ID format' });
-    }
-    if (!Array.isArray(seatIds) || seatIds.length === 0) {
-      return res.status(400).json({ message: 'seatIds array required' });
-    }
+    // ... existing validation
 
     const show = await Show.findById(id);
     if (!show) return res.status(404).json({ message: "Show not found" });
 
-    const result = await show.bookSeats(seatIds);
+    // Enhanced status check
+    if (show.status !== 'Upcoming') {
+      return res.status(400).json({ 
+        message: `Cannot book seats: Show is ${show.status.toLowerCase()}` 
+      });
+    }
 
-    res.json(result);
+    // Existing time cutoff check (keep it!)
+    const now = new Date();
+    const bookingCutoff = new Date(show.startTime.getTime() - 15 * 60 * 1000);
+    if (now > bookingCutoff) {
+      return res.status(400).json({ 
+        message: "Booking closed: Less than 15 minutes to show start" 
+      });
+    }
+
+    await show.bookSeats(seatIds);
+
+    // Optional: Update status to Live if very close (but better done via cron)
+    res.json({ success: true, bookedSeats: seatIds });
   } catch (err) {
     console.error('Book seats error:', err);
     res.status(400).json({ error: err.message });
@@ -196,21 +217,23 @@ export const bookSeats = async (req, res) => {
 // ---------------------------
 export const cancelSeats = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { seatIds } = req.body;
-
-    if (!mongoose.isValidObjectId(id)) {
-      return res.status(400).json({ message: 'Invalid show ID format' });
-    }
-    if (!Array.isArray(seatIds) || seatIds.length === 0) {
-      return res.status(400).json({ message: 'seatIds array required' });
-    }
+    // ... validation
 
     const show = await Show.findById(id);
     if (!show) return res.status(404).json({ message: "Show not found" });
 
-    const result = await show.cancelBooking(seatIds);
+    if (show.status === 'Completed') {
+      return res.status(400).json({ 
+        message: "Cannot cancel: Show is already completed" 
+      });
+    }
+    if (show.status === 'Live') {
+      return res.status(400).json({ 
+        message: "Cannot cancel: Show is currently live" 
+      });
+    }
 
+    const result = await show.cancelBooking(seatIds);
     res.json(result);
   } catch (err) {
     console.error('Cancel seats error:', err);
@@ -468,6 +491,17 @@ export const getSeatCounts = async (req, res) => {
 
     res.json({ totalBookable, available, booked, fillRate: (booked / totalBookable * 100).toFixed(1) + '%' });
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// NEW: Manual trigger for status update (useful for testing or fallback)
+export const refreshShowStatuses = async (req, res) => {
+  try {
+    await Show.updateAllShowStatuses();
+    res.json({ message: "All show statuses updated successfully" });
+  } catch (err) {
+    console.error('Refresh statuses error:', err);
     res.status(500).json({ error: err.message });
   }
 };
