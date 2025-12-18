@@ -6,6 +6,7 @@ import Navbar from '../components/Navbar';
 import Card from '../components/Card';
 import Footer from '../components/Footer';
 import { getAllMovies, getMovieById } from '../api/movieAPI';
+import { getAllShows } from '../api/showAPI'; // Import show API to check active shows
 
 const NowShowingAll = () => {
   const [searchParams] = useSearchParams();
@@ -19,14 +20,13 @@ const NowShowingAll = () => {
   const movieId = searchParams.get('movieId');
   const isDetailView = !!movieId;
 
-const getImageUrl = (filename) => {
-  const localUrl = filename 
-    ? `${import.meta.env.VITE_BACKEND_BASE_URL || 'http://localhost:5000'}/posters/${filename}`
-    : null;
+  const getImageUrl = (filename) => {
+    const localUrl = filename 
+      ? `${import.meta.env.VITE_BACKEND_BASE_URL || 'http://localhost:5000'}/posters/${filename}`
+      : null;
 
-  // Fallback to official Demon Slayer posters
-  return localUrl || 'https://a.storyblok.com/f/178900/1920x1080/70f47c0f6d/demon-slayer-kimetsu-no-yaiba-infinity-castle-imax-wide.png';
-};
+    return localUrl || 'https://a.storyblok.com/f/178900/1920x1080/70f47c0f6d/demon-slayer-kimetsu-no-yaiba-infinity-castle-imax-wide.png';
+  };
 
   // Helper: Extract YouTube embed URL
   const getTrailerEmbedUrl = (url) => {
@@ -44,56 +44,63 @@ const getImageUrl = (filename) => {
     return videoId ? `https://www.youtube.com/embed/${videoId}` : '';
   };
 
-  // Helper: Extract movie ID string from _id object or string
+  // Helper: Extract movie ID string
   const getMovieIdString = (movie) => {
     if (!movie || !movie._id) return null;
     return typeof movie._id === 'string' ? movie._id : movie._id.$oid || movie._id;
   };
 
   useEffect(() => {
-    const fetchNowShowingMovies = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
         setError(null);
 
-        const response = await getAllMovies({ limit: 100 });
+        const [allMoviesResponse, allShowsResponse] = await Promise.all([
+          getAllMovies({ limit: 100 }),
+          getAllShows({})
+        ]);
 
-        // Handle different possible response shapes
+        // Handle movies response
         let allMovies = [];
-        if (response && Array.isArray(response)) {
-          allMovies = response;
-        } else if (response && response.data && Array.isArray(response.data)) {
-          allMovies = response.data;
-        } else if (response && Array.isArray(response.movies)) {
-          allMovies = response.movies;
-        } else {
-          console.warn('Unexpected response format:', response);
+        if (allMoviesResponse && Array.isArray(allMoviesResponse)) {
+          allMovies = allMoviesResponse;
+        } else if (allMoviesResponse && allMoviesResponse.data && Array.isArray(allMoviesResponse.data)) {
+          allMovies = allMoviesResponse.data;
+        } else if (allMoviesResponse && Array.isArray(allMoviesResponse.movies)) {
+          allMovies = allMoviesResponse.movies;
         }
 
-        console.log('Fetched movies:', allMovies.map(m => ({
-          title: m.title,
-          status: m.status,
-          id: getMovieIdString(m)
-        })));
+        // Extract active movie IDs from shows (shows with status 'Upcoming')
+        const activeMovieIds = new Set();
+        allShowsResponse.forEach(show => {
+          if (show.status === 'Upcoming') { // As in NowShowing.jsx
+            const movieIdStr = typeof show.movieId === 'string' 
+              ? show.movieId 
+              : (show.movieId?.$oid || show.movieId?._id?.toString());
+            if (movieIdStr) activeMovieIds.add(movieIdStr);
+          }
+        });
 
-        // Filter movies with status "Now Showing" (case-sensitive match)
-        const nowShowingMovies = allMovies.filter(movie => 
-          movie.status && movie.status.trim() === 'Now Showing'
-        );
+        // Filter movies: status === 'Now Showing' AND has at least one active show
+        const nowShowingMovies = allMovies.filter(movie => {
+          const movieStatus = movie.status?.trim();
+          const movieIdStr = getMovieIdString(movie);
+          return movieStatus === 'Now Showing' && activeMovieIds.has(movieIdStr);
+        });
 
         setMovies(nowShowingMovies);
 
         // Detail view logic
         if (isDetailView && movieId) {
-          let foundMovie = nowShowingMovies.find(m => 
-            getMovieIdString(m) === movieId
-          );
+          let foundMovie = nowShowingMovies.find(m => getMovieIdString(m) === movieId);
 
           if (!foundMovie) {
             try {
               const singleResponse = await getMovieById(movieId);
               const singleMovie = singleResponse.data || singleResponse;
-              if (singleMovie && singleMovie.status === 'Now Showing') {
+              const singleMovieIdStr = getMovieIdString(singleMovie);
+              if (singleMovie && singleMovie.status?.trim() === 'Now Showing' && activeMovieIds.has(singleMovieIdStr)) {
                 foundMovie = singleMovie;
               }
             } catch (err) {
@@ -109,7 +116,7 @@ const getImageUrl = (filename) => {
           }
         }
       } catch (err) {
-        console.error('Error fetching movies:', err);
+        console.error('Error fetching data:', err);
         setError('Failed to load movies. Please check your connection or try again later.');
         toast.error('Failed to load now showing movies.');
       } finally {
@@ -117,13 +124,13 @@ const getImageUrl = (filename) => {
       }
     };
 
-    fetchNowShowingMovies();
+    fetchData();
   }, [movieId, isDetailView, navigate]);
 
-  const handleBuyTickets = () => {
-    if (!selectedMovie) return;
-    toast.info('Redirecting to booking...');
-    // navigate(`/booking?movieId=${getMovieIdString(selectedMovie)}`);
+  const handleBuyTickets = (movie) => {
+    if (!movie) return;
+    const id = getMovieIdString(movie);
+    navigate(`/now-showing?movieId=${id}`);
   };
 
   if (loading) {
@@ -195,7 +202,7 @@ const getImageUrl = (filename) => {
                   </p>
 
                   <button
-                    onClick={handleBuyTickets}
+                    onClick={() => handleBuyTickets(selectedMovie)}
                     className="w-full bg-green-600 hover:bg-green-700 text-white py-4 px-8 rounded-lg text-xl font-bold transition-all transform hover:scale-105 shadow-lg"
                   >
                     Buy Tickets
@@ -235,19 +242,20 @@ const getImageUrl = (filename) => {
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-8">
                   {movies.map((movie) => (
-                   <Card
-  key={getMovieIdString(movie)}
-  movie={{
-    id: getMovieIdString(movie),
-    title: movie.title,
-    image: getImageUrl(movie.profilePoster || movie.bannerPoster),
-    language: movie.language,
-    genre: movie.genre,
-    rating: movie.rating,
-    duration: movie.duration,
-    tag: 'Now Showing'   // ← ADD THIS LINE
-  }}
-/>
+                    <Card
+                      key={getMovieIdString(movie)}
+                      movie={{
+                        id: getMovieIdString(movie),
+                        title: movie.title,
+                        image: getImageUrl(movie.profilePoster || movie.bannerPoster),
+                        language: movie.language,
+                        genre: movie.genre,
+                        rating: movie.rating,
+                        duration: movie.duration,
+                        tag: 'Now Showing'
+                      }}
+                      onBuyTickets={() => handleBuyTickets(movie)} // Optional: direct buy
+                    />
                   ))}
                 </div>
               )}
