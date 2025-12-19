@@ -1,31 +1,27 @@
+// routes/paymentRoutes.js
 import express from "express";
 import {
   createPayment,
-  processPayment,
-  refundPayment,
-  retryPayment,
-  getPaymentStatus,
+  paymentSuccess,
+  paymentFailed,
+  getMyTickets,
+  cancelTicket,
   getAllPayments,
 } from "../controllers/paymentController.js";
+import { protect, admin } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// Create a new payment
-router.post("/", createPayment);
+// User routes
+router.post("/", protect, createPayment);                    // Create payment
+router.get("/my", protect, getMyTickets);                    // Get my tickets
+router.post("/:id/cancel", protect, cancelTicket);           // Cancel ticket (refund)
 
-// Process payment
-router.post("/:id/process", processPayment);
+// Gateway callbacks (public)
+router.post("/success", paymentSuccess);
+router.post("/failed", paymentFailed);
 
-// Refund payment
-router.post("/:id/refund", refundPayment);
-
-// Retry failed payment
-router.post("/:id/retry", retryPayment);
-
-// Get payment status
-router.get("/:id/status", getPaymentStatus);
-
-// Get all payments (admin use)
-router.get("/", getAllPayments);
+// Admin
+router.get("/", protect, admin, getAllPayments);
 
 export default router;

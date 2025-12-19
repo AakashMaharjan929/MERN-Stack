@@ -41,6 +41,7 @@ import ContactPage from '../pages/ContactPage';
 import Schedule from '../pages/Schedule';
 
 import MyTickets from '../pages/MyTickets';
+import StripeSuccess from '../pages/StripeSuccess';
 
 function AppRoutes() {
   return (
@@ -112,6 +113,11 @@ function AppRoutes() {
         <Route path="/schedule" element={<Schedule />} />
 
         <Route path="/my-tickets" element={<MyTickets />} />
+
+        <Route path="/stripe-success" element={<StripeSuccess />} />
+
+        {/* Catch-all for unmatched routes */}
+        <Route path="*" element={<div className="text-center py-20 text-gray-800">404 - Page Not Found</div>} />
       </Routes>
     </BrowserRouter>
   );

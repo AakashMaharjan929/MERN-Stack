@@ -10,9 +10,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@stripe/react-stripe-js": "^5.4.1",
+    "@stripe/stripe-js": "^8.6.0",
     "@tailwindcss/vite": "^4.1.13",
     "axios": "^1.12.1",
     "html2canvas": "^1.4.1",
+    "html2canvas-pro": "^1.6.1",
     "jsbarcode": "^3.12.1",
     "jspdf": "^3.0.4",
     "lucide-react": "^0.555.0",

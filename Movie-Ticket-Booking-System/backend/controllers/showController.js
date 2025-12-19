@@ -533,3 +533,19 @@ export const refreshShowStatuses = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+export const lockSeats = async (showId, seatNumbers) => {
+  await Show.updateOne(
+    { _id: showId },
+    {
+      $set: {
+        'availableSeats.$[seat].isBooked': true
+      }
+    },
+    {
+      arrayFilters: [
+        { 'seat.seatNumber': { $in: seatNumbers } }
+      ]
+    }
+  );
+};

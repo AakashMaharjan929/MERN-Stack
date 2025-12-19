@@ -13,13 +13,19 @@ app.use(express.json());
 app.use(express.static(path.join(process.cwd(), 'public')));
 
 // Allow requests from your frontend
+// CORS setup - MUST be before routes
 app.use(cors({
-  origin: "http://localhost:5173", // frontend URL
-  credentials: true // if you need cookies/auth
+  origin: "http://localhost:5173",
+  credentials: true,
+  allowedHeaders: ["Content-Type", "Authorization"],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
 }));
 
-// Use central routes
-app.use("/", routes);  
+// Critical: Handle preflight OPTIONS for ALL routes - place BEFORE routes
+app.options('*', cors());
+
+// Your routes - AFTER CORS
+app.use("/", routes);
 
 // Start server
 const PORT = process.env.PORT || 5000;

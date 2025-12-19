@@ -1,39 +1,35 @@
-import React from 'react';
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import jsPDF from 'jspdf'; // npm install jspdf
-import html2canvas from 'html2canvas'; // npm install html2canvas
-import Barcode from 'react-barcode'; // Already installed
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas-pro';
+import Barcode from 'react-barcode';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import axios from 'axios';
 
-// Simple Error Boundary Component
+const baseUrl = import.meta.env.VITE_BACKEND_BASE_URL || 'http://localhost:5000';
+
 class ErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false, error: null };
+  state = { hasError: false };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
   }
 
-  static getDerivedStateFromError(error) {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error, errorInfo) {
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+  componentDidCatch(error, info) {
+    console.error('Barcode error:', error, info);
   }
 
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{ backgroundColor: '#fee2e2', border: '1px solid #fecaca', color: '#991b1b', padding: '1rem', borderRadius: '0.375rem' }}>
-          <strong>Something went wrong with the barcode display.</strong>
-          <p style={{ marginTop: '0.25rem' }}>{this.state.error?.message}</p>
-          <p>Use the download option to get the barcode value.</p>
+        <div className="text-center text-red-600 text-sm">
+          <strong>Barcode failed to load</strong>
+          <p className="mt-1">Use download to view code: {this.props.fallbackValue}</p>
         </div>
       );
     }
-
     return this.props.children;
   }
 }
@@ -41,336 +37,359 @@ class ErrorBoundary extends React.Component {
 const MyTickets = () => {
   const [user, setUser] = useState(null);
   const [tickets, setTickets] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [cancellingId, setCancellingId] = useState(null);
+  const [activeTab, setActiveTab] = useState('upcoming'); // New: Upcoming / Past tabs
   const navigate = useNavigate();
-
-  // Mock ticket data - Updated to match ticket style (no images, added details)
-  const MOCK_TICKETS = [
-    {
-      id: 1,
-      movieTitle: "जारि२",
-      showDateTime: "Kartik 29 | 7 NOV 7:00 PM",
-      auditorium: "Auditorium 1",
-      screen: "Screen 1",
-      seat: "G 7",
-      showType: "Weekend 3D Foreign Platinum Afternoon",
-      price: "NPR 500.00",
-      grandTotal: "NPR 500.00",
-      barcodeValue: "11817063087", // Numeric barcode like in example
-      cinema: {
-        name: "Cinemax",
-        address: "Rising Mall, Durbar Marg",
-        phone: "4169201/4169202",
-        website: "www.qscinemas.com"
-      },
-      notes: {
-        inclusive: "+ Inclusive of 15% FDT and 13% VAT.",
-        glasses: "+ 3D Glasses Rs 50 Extra On Every Ticket (All Show).",
-        nepali: "+ Inclusive of 13% VAT. Nepali Movies"
-      }
-    },
-    {
-      id: 2,
-      movieTitle: "Wicked 2: For Good",
-      showDateTime: "November 21 5:30 PM",
-      auditorium: "Auditorium 2",
-      screen: "Screen 2",
-      seat: "H 12",
-      showType: "Weekend 3D Foreign Platinum Afternoon",
-      price: "NPR 750.00",
-      grandTotal: "NPR 750.00",
-      barcodeValue: "11817063088",
-      cinema: {
-        name: "Q's Cinemas",
-        address: "Rising Mall, Durbar Marg",
-        phone: "4169201/4169202",
-        website: "www.qscinemas.com"
-      },
-      notes: {
-        inclusive: "+ Inclusive of 15% FDT and 13% VAT.",
-        glasses: "+ 3D Glasses Rs 50 Extra On Every Ticket (All Show).",
-        nepali: "+ Inclusive of 13% VAT. Nepali Movies"
-      }
-    },
-    {
-      id: 3,
-      movieTitle: "माया",
-      showDateTime: "Kartik 15 | 31 OCT 8:45 PM",
-      auditorium: "Auditorium 3",
-      screen: "Screen 3",
-      seat: "F 5",
-      showType: "Weekend 3D Foreign Platinum Afternoon",
-      price: "NPR 400.00",
-      grandTotal: "NPR 400.00",
-      barcodeValue: "11817063089",
-      cinema: {
-        name: "Q's Cinemas",
-        address: "Rising Mall, Durbar Marg",
-        phone: "4169201/4169202",
-        website: "www.qscinemas.com"
-      },
-      notes: {
-        inclusive: "+ Inclusive of 15% FDT and 13% VAT.",
-        glasses: "+ 3D Glasses Rs 50 Extra On Every Ticket (All Show).",
-        nepali: "+ Inclusive of 13% VAT. Nepali Movies"
-      }
-    }
-  ];
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-        const downloadableTickets = MOCK_TICKETS.filter(t => true); // All are downloadable
-        setTickets(downloadableTickets);
-      } catch (err) {
-        console.error('Error parsing user data:', err);
-        localStorage.removeItem('user');
-        navigate('/login');
-      }
-    } else {
+    if (!storedUser) {
+      navigate('/login');
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(storedUser);
+      setUser(parsed);
+
+      const fetchTickets = async () => {
+        try {
+          const token = localStorage.getItem('token');
+          const res = await axios.get(`${baseUrl}/payment/my`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+
+          if (res.data.success && Array.isArray(res.data.tickets)) {
+            setTickets(res.data.tickets);
+          } else {
+            setTickets([]);
+          }
+        } catch (err) {
+          console.error(err);
+          toast.error('Failed to load tickets');
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      fetchTickets();
+    } catch (err) {
+      localStorage.removeItem('user');
       navigate('/login');
     }
   }, [navigate]);
 
+  // Determine if a ticket is upcoming (based on showDateTime format like "24 DEC | 24 DEC 7:14 PM")
+  const isUpcoming = (ticket) => {
+    if (!ticket.showDateTime) return true;
+
+    const datePart = ticket.showDateTime.split(' | ')[0].trim();
+    if (!datePart) return true;
+
+    const [dayStr, monthAbbr] = datePart.split(' ');
+    if (!dayStr || !monthAbbr) return true;
+
+    const monthMap = {
+      JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5,
+      JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11,
+      MANG: 1, // Nepali months if used
+      // Add more if needed
+    };
+
+    const month = monthMap[monthAbbr.toUpperCase()];
+    if (month === undefined) return true;
+
+    const day = parseInt(dayStr, 10);
+    const currentYear = new Date().getFullYear();
+    const showDate = new Date(currentYear, month, day);
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return showDate >= today;
+  };
+
+  const upcomingTickets = tickets.filter(isUpcoming);
+  const pastTickets = tickets.filter((t) => !isUpcoming(t));
+
   const downloadTicket = async (ticket) => {
-    const ticketElement = document.getElementById(`ticket-${ticket.id}`);
-    if (!ticketElement) {
-      toast.error('Ticket element not found.');
+    const element = document.getElementById(`ticket-${ticket.id}`);
+    if (!element) {
+      toast.error('Ticket not found');
       return;
     }
 
-    // Temporarily hide the download button for clean capture
-    const downloadBtn = ticketElement.querySelector('button');
-    if (downloadBtn) {
-      downloadBtn.style.display = 'none';
-    }
+    const buttons = element.querySelectorAll('button');
+    buttons.forEach((btn) => (btn.style.display = 'none'));
 
     try {
-      // Capture the ticket div as canvas
-      const canvas = await html2canvas(ticketElement, {
-        scale: 3, // Higher scale for better resolution
+      const canvas = await html2canvas(element, {
+        scale: 3,
+        backgroundColor: '#ffffff',
         useCORS: true,
         allowTaint: true,
-        backgroundColor: '#ffffff', // Ensure white background
-        width: ticketElement.scrollWidth,
-        height: ticketElement.scrollHeight,
-        logging: false, // Disable logging to reduce noise
+        logging: false,
         onclone: (clonedDoc) => {
           const clonedTicket = clonedDoc.getElementById(`ticket-${ticket.id}`);
           if (clonedTicket) {
-            // Set root styles
             clonedTicket.style.backgroundColor = '#ffffff';
-            clonedTicket.style.color = '#000000';
-            clonedTicket.style.borderColor = '#d1d5db';
 
-            // Recursively fix any oklch colors using TreeWalker
-            const walker = clonedDoc.createTreeWalker(
-              clonedTicket,
-              NodeFilter.SHOW_ELEMENT,
-              null,
-              false
-            );
-            let node;
-            while (node = walker.nextNode()) {
-              // Check and fix color
-              if (node.style.color && node.style.color.includes('oklch')) {
-                node.style.color = '#000000';
-              }
-              // Check and fix backgroundColor
-              if (node.style.backgroundColor && node.style.backgroundColor.includes('oklch')) {
-                node.style.backgroundColor = '#ffffff';
-              }
-              // Check and fix border colors
-              if (node.style.borderColor && node.style.borderColor.includes('oklch')) {
-                node.style.borderColor = '#d1d5db';
-              }
-              // For SVG elements in barcode (stroke, fill)
-              if (node.tagName && (node.tagName === 'path' || node.tagName === 'rect' || node.tagName === 'line')) {
-                if (node.style.stroke && node.style.stroke.includes('oklch')) {
-                  node.style.stroke = '#000000';
-                }
-                if (node.style.fill && node.style.fill.includes('oklch')) {
-                  node.style.fill = '#000000';
-                }
-              }
-            }
+            clonedTicket.querySelector('h2')?.style.setProperty('color', '#ea580c', 'important');
 
-            // Specific overrides
-            const h2 = clonedTicket.querySelector('h2');
-            if (h2) {
-              h2.style.color = '#ea580c';
-            }
-            const strongs = clonedTicket.querySelectorAll('strong');
-            strongs.forEach(el => {
-              el.style.color = '#000000';
+            clonedTicket.querySelectorAll('*').forEach((el) => {
+              if (el.style.color?.includes('oklch')) {
+                el.style.color = '#000000';
+              }
             });
+
+            const svg = clonedTicket.querySelector('svg');
+            if (svg) {
+              svg.style.backgroundColor = '#ffffff';
+              svg.querySelectorAll('rect, path').forEach((el) => {
+                const currentFill = el.getAttribute('fill');
+                if (currentFill && currentFill !== 'none' && currentFill !== '#ffffff') {
+                  el.setAttribute('fill', '#000000');
+                } else {
+                  el.setAttribute('fill', 'none');
+                }
+                el.style.stroke = '#000000';
+              });
+            }
           }
-        }
+        },
       });
 
-      // Create PDF with custom size to fit the ticket better (e.g., A6-like for compact ticket)
-      const pdf = new jsPDF({
-        orientation: 'p',
-        unit: 'mm',
-        format: [105, 148] // A6 size: 105mm width x 148mm height, compact for tickets
-      });
-
-      // Calculate dimensions to fill the page
-      const pageWidth = 105;
-      const pageHeight = 148;
-      const imgWidth = pageWidth - 10; // 95mm width with 5mm margins on each side
+      const pdf = new jsPDF('p', 'mm', [105, 148]);
+      const imgWidth = 95;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      const xPosition = (pageWidth - imgWidth) / 2; // Center horizontally
-      const yPosition = (pageHeight - imgHeight) / 2; // Center vertically if it fits
+      const x = (105 - imgWidth) / 2;
+      const y = imgHeight > 138 ? 5 : (148 - imgHeight) / 2;
 
-      // Check if it fits on one page; if not, scale down height proportionally
-      let finalImgHeight = imgHeight;
-      let finalYPosition = 5; // Top margin
-      if (imgHeight > pageHeight - 10) { // If too tall, scale to fit
-        finalImgHeight = pageHeight - 10;
-        finalYPosition = 5;
-      } else {
-        finalYPosition = (pageHeight - finalImgHeight) / 2; // Center if fits
-      }
+      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', x, y, imgWidth, imgHeight);
+      pdf.save(`${ticket.movieTitle.replace(/[^a-zA-Z0-9]/g, '_')}-ticket.pdf`);
 
-      // Add the image centered
-      const imgData = canvas.toDataURL('image/png');
-      pdf.addImage(imgData, 'PNG', xPosition, finalYPosition, imgWidth, finalImgHeight);
-
-      // Save the PDF
-      pdf.save(`ticket-${ticket.id}-${ticket.movieTitle.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);
-
-      toast.success('Ticket downloaded as PDF successfully! Print for entry.', {
-        position: "top-right",
-        autoClose: 3000,
-      });
-    } catch (error) {
-      console.error('Error generating PDF:', error);
+      toast.success('Ticket downloaded successfully! Ready for print.');
+    } catch (err) {
+      console.error('PDF generation error:', err);
       toast.error('Failed to generate PDF. Please try again.');
     } finally {
-      // Restore the download button
-      if (downloadBtn) {
-        downloadBtn.style.display = '';
-      }
+      buttons.forEach((btn) => (btn.style.display = ''));
     }
   };
 
-  if (!user) {
+  const cancelTicket = async (ticketId) => {
+    setCancellingId(ticketId);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.post(
+        `${baseUrl}/payment/${ticketId}/cancel`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (res.data.success) {
+        toast.success('Ticket cancelled successfully. Refund will be processed soon.');
+        setTickets((prev) => prev.filter((t) => t.id !== ticketId));
+      } else {
+        toast.error(res.data.message || 'Cancellation failed');
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error(err.response?.data?.message || 'Cancellation failed');
+    } finally {
+      setCancellingId(null);
+    }
+  };
+
+  const handleBrowseMovies = () => navigate('/');
+
+  if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="text-gray-500">Loading...</div>
+      <div className="flex items-center justify-center min-h-screen">
+        <p className="text-white text-xl">Loading your tickets...</p>
       </div>
     );
   }
 
-  const handleBrowseMovies = () => {
-    navigate('/');
-  };
+  if (!user) return null;
+
+  const displayedTickets = activeTab === 'upcoming' ? upcomingTickets : pastTickets;
 
   return (
     <div className="min-h-screen bg-[url('/bgsignup.png')] bg-cover bg-center bg-no-repeat">
       <Navbar />
-      <main className="pt-16 p-8 relative z-0">
+      <main className="pt-16 p-8">
         <div className="max-w-6xl mx-auto">
-          <h1 className="text-3xl font-bold text-white mb-8 drop-shadow-lg">My Tickets</h1>
-          {tickets.length > 0 ? (
-            <div className="space-y-6">
-              {tickets.map((ticket) => (
-                <div 
-                  key={ticket.id} 
+          <h1 className="text-3xl font-bold text-white mb-10 drop-shadow-lg text-center">
+            My Tickets
+          </h1>
+
+          {/* Tabs */}
+          <div className="flex justify-center mb-10">
+            <div className="inline-flex rounded-lg bg-white/90 shadow-lg p-1">
+              <button
+                onClick={() => setActiveTab('upcoming')}
+                className={`px-8 py-3 rounded-md font-bold transition ${
+                  activeTab === 'upcoming'
+                    ? 'bg-green-600 text-white shadow-md'
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                Upcoming ({upcomingTickets.length})
+              </button>
+              <button
+                onClick={() => setActiveTab('past')}
+                className={`px-8 py-3 rounded-md font-bold transition ${
+                  activeTab === 'past'
+                    ? 'bg-green-600 text-white shadow-md'
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                Past ({pastTickets.length})
+              </button>
+            </div>
+          </div>
+
+          {tickets.length === 0 ? (
+            <div className="text-center py-16">
+              <p className="text-white text-xl mb-8 drop-shadow-lg">No tickets booked yet</p>
+              <button
+                onClick={handleBrowseMovies}
+                className="bg-green-600 hover:bg-green-700 text-white px-10 py-4 rounded-lg font-bold text-lg transition shadow-lg"
+              >
+                Browse Movies
+              </button>
+            </div>
+          ) : displayedTickets.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-white text-xl drop-shadow-lg">
+                No {activeTab === 'upcoming' ? 'upcoming' : 'past'} tickets found.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-10">
+              {displayedTickets.map((ticket) => (
+                <div
+                  key={ticket.id}
                   id={`ticket-${ticket.id}`}
-                  className="p-6 rounded-lg shadow-lg max-w-md mx-auto print:max-w-none"
-                  style={{ backgroundColor: '#ffffff', color: '#000000', border: '1px solid #d1d5db' }}
+                  className={`bg-white rounded-xl shadow-2xl border border-gray-300 max-w-md mx-auto overflow-hidden transition-opacity ${
+                    activeTab === 'past' ? 'opacity-75' : ''
+                  }`}
                 >
-                  {/* Cinema Header */}
-                  <div className="text-center border-b-2 pb-2 mb-4" style={{ borderBottomColor: '#d1d5db' }}>
-                    <h2 className="text-xl font-bold" style={{ color: '#ea580c' }}>{ticket.cinema.name}</h2>
-                    <p className="text-sm" style={{ color: '#000000' }}>{ticket.cinema.address}</p>
-                    <p className="text-xs" style={{ color: '#000000' }}>{ticket.cinema.phone}</p>
-                    <p className="text-xs italic" style={{ color: '#000000' }}>{ticket.cinema.website}</p>
-                  </div>
-
-                  {/* Show Details */}
-                  <div className="grid grid-cols-2 gap-2 mb-4 text-sm" style={{ color: '#000000' }}>
-                    <div>
-                      <strong style={{ color: '#000000' }}>Show Date/Time</strong>
-                      <p style={{ color: '#000000' }}>{ticket.showDateTime}</p>
+                  <div className="p-6">
+                    {/* Cinema Header */}
+                    <div className="text-center border-b-2 border-gray-300 pb-4 mb-6">
+                      <h2 className="text-2xl font-bold text-orange-600">{ticket.cinema.name}</h2>
+                      <p className="text-sm text-gray-700 mt-1">{ticket.cinema.address}</p>
+                      <p className="text-xs text-gray-600">{ticket.cinema.phone}</p>
+                      <p className="text-xs italic text-gray-500">{ticket.cinema.website}</p>
                     </div>
-                    <div>
-                      <strong style={{ color: '#000000' }}>Movie Name</strong>
-                      <p className="font-semibold" style={{ color: '#000000' }}>{ticket.movieTitle}</p>
-                    </div>
-                    <div>
-                      <strong style={{ color: '#000000' }}>Auditorium</strong>
-                      <p style={{ color: '#000000' }}>{ticket.auditorium}</p>
-                    </div>
-                    <div className="col-span-2">
-                      <strong style={{ color: '#000000' }}>Screen / Seat</strong>
-                      <p style={{ color: '#000000' }}>Screen {ticket.screen} Seat {ticket.seat}</p>
-                    </div>
-                  </div>
 
-                  {/* Show Type and Price */}
-                  <div className="mb-4" style={{ color: '#000000' }}>
-                    <p className="font-semibold text-sm mb-1" style={{ color: '#000000' }}>{ticket.showType}</p>
-                    <p className="text-right font-bold" style={{ color: '#000000' }}>{ticket.price}</p>
-                  </div>
+                    {/* Details */}
+                    <div className="grid grid-cols-2 gap-4 text-sm mb-6">
+                      <div>
+                        <strong className="text-gray-800">Show Date/Time</strong>
+                        <p className="font-medium">{ticket.showDateTime}</p>
+                      </div>
+                      <div>
+                        <strong className="text-gray-800">Movie</strong>
+                        <p className="font-bold text-lg">{ticket.movieTitle}</p>
+                      </div>
+                      <div>
+                        <strong className="text-gray-800">Auditorium</strong>
+                        <p>{ticket.auditorium}</p>
+                      </div>
+                      <div className="col-span-2">
+                        <strong className="text-gray-800">Screen / Seat</strong>
+                        <p className="font-medium">Screen {ticket.screen} • Seat {ticket.seat}</p>
+                      </div>
+                    </div>
 
-                  {/* Grand Total */}
-                  <div className="border-t pt-2 mb-4" style={{ borderTopColor: '#d1d5db', color: '#000000' }}>
-                    <p className="text-right font-bold text-lg" style={{ color: '#000000' }}>Grand Total</p>
-                    <p className="text-right font-bold text-xl" style={{ color: '#000000' }}>{ticket.grandTotal}</p>
-                  </div>
+                    <div className="mb-6">
+                      <p className="text-sm text-gray-600">{ticket.showType}</p>
+                      <p className="text-right text-2xl font-bold text-gray-900">{ticket.grandTotal}</p>
+                    </div>
 
-                  {/* Barcode */}
-                  <div className="text-center mb-4" style={{ color: '#000000' }}>
-                    <div style={{ color: 'black' }}>
-                      <ErrorBoundary>
+                    {/* Barcode */}
+                    <div className="text-center mb-6 bg-white">
+                      <ErrorBoundary fallbackValue={ticket.barcodeValue}>
                         <Barcode
                           value={ticket.barcodeValue}
                           format="CODE128"
                           width={2}
-                          height={60}
+                          height={70}
                           displayValue={false}
-                          style={{ color: 'black' }}
+                          background="#ffffff"
+                          lineColor="#000000"
                         />
                       </ErrorBoundary>
+                      <p className="text-xs font-mono text-gray-600 mt-2">{ticket.barcodeValue}</p>
                     </div>
-                    <p className="text-xs mt-1" style={{ color: '#000000' }}>{ticket.barcodeValue}</p>
-                  </div>
 
-                  {/* Notes */}
-                  <div className="text-xs border-t pt-2" style={{ borderTopColor: '#d1d5db', color: '#000000' }}>
-                    <p className="mb-1" style={{ color: '#000000' }}>Note: Ticket prices are inclusive of Refreshments</p>
-                    <p style={{ color: '#000000' }}>{ticket.notes.inclusive}</p>
-                    <p className="mb-1" style={{ color: '#000000' }}>Normal/3D Movies</p>
-                    <p style={{ color: '#000000' }}>{ticket.notes.glasses}</p>
-                    <p style={{ color: '#000000' }}>{ticket.notes.nepali}</p>
-                  </div>
+                    {/* Notes */}
+                    <div className="text-xs text-gray-600 space-y-1 border-t pt-4">
+                      <p>Note: Ticket prices are inclusive of Refreshments</p>
+                      <p>{ticket.notes.inclusive}</p>
+                      <p>Normal/3D Movies</p>
+                      <p>{ticket.notes.glasses}</p>
+                      <p>{ticket.notes.nepali}</p>
+                    </div>
 
-                  {/* Download Button - Hidden on print */}
-                  <div className="text-center mt-4 print:hidden">
-                    <button
-                      onClick={() => downloadTicket(ticket)}
-                      className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-md text-sm font-semibold transition-colors"
-                      style={{ backgroundColor: '#16a34a', color: 'white' }} // Inline for button too
-                    >
-                      Download Ticket as PDF
-                    </button>
+                    {/* Action Buttons */}
+                    <div className="flex flex-col sm:flex-row gap-3 mt-8 print:hidden">
+                      <button
+                        data-action="download"
+                        onClick={() => downloadTicket(ticket)}
+                        className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition shadow-md"
+                      >
+                        Download PDF Ticket
+                      </button>
+
+                      {activeTab === 'upcoming' && ticket.canRefund && (
+                        <button
+                          onClick={() => cancelTicket(ticket.id)}
+                          disabled={cancellingId === ticket.id}
+                          className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white font-bold py-3 px-6 rounded-lg transition shadow-md disabled:cursor-not-allowed"
+                        >
+                          {cancellingId === ticket.id ? (
+                            'Cancelling...'
+                          ) : (
+                            <>
+                              Cancel Ticket
+                              <span className="block text-xs font-normal mt-1">
+                                {ticket.minutesLeft} min left
+                              </span>
+                            </>
+                          )}
+                        </button>
+
+                        
+                      )}
+                    </div>
+
+                    {/* Action Buttons */}
+<div className="flex flex-col sm:flex-row gap-3 mt-8 print:hidden">
+  {/* ... download and cancel buttons ... */}
+</div>
+
+{/* Cancellation Closed Message - Only for upcoming expired tickets */}
+{activeTab === 'upcoming' && !ticket.canRefund && (
+  <p className="text-center text-sm text-grey-600 mt-(-1) font-medium">
+    Cancellation period has ended
+  </p>
+)}
+
+                    
+
+                    {activeTab === 'past' && (
+                      <p className="text-center text-sm text-gray-500 mt-4">
+                        Completed • Thank you for watching!
+                      </p>
+                    )}
                   </div>
                 </div>
               ))}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <p className="text-white text-lg drop-shadow-lg mb-4">No tickets available yet. Book a movie to get yours!</p>
-              <button
-                onClick={handleBrowseMovies}
-                className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-md text-sm font-semibold transition-colors"
-              >
-                Browse Movies
-              </button>
             </div>
           )}
         </div>

@@ -1,110 +1,164 @@
+// Payment.js
 import mongoose from "mongoose";
-import Booking from "./Booking.js";
 
-// ---------------------------
-// Schema
-// ---------------------------
-const paymentSchema = new mongoose.Schema(
-  {
-    bookingId: { type: mongoose.Schema.Types.ObjectId, ref: "Booking", required: true },
-    amount: { type: Number, required: true },
-    method: { 
-      type: String, 
-      enum: ["Card", "UPI", "NetBanking", "Wallet", "Cash"], 
-      required: true 
-    },
-    status: { 
-      type: String, 
-      enum: ["Pending", "Completed", "Failed", "Refunded"], 
-      default: "Pending" 
-    },
-    transactionDate: { type: Date, default: Date.now }
+const paymentSchema = new mongoose.Schema({
+  bookingId: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: "Booking", 
+    required: true 
   },
-  { timestamps: true }
-);
+  userId: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: "User", 
+    required: false  // Optional if guest checkout allowed
+  },
 
-// ---------------------------
-// Class
-// ---------------------------
+  // Denormalized for quick receipt/display without joins
+  movieTitle: { type: String, required: true },
+  cinemaName: { type: String, required: true },
+  showDate: { type: Date, required: true },
+  showTime: { type: String, required: true },
+  seats: [{ type: String, required: true }],
+
+  // Payment amount
+  amount: { type: Number, required: true, min: 0 }, // in NPR
+  currency: { type: String, default: "NPR", uppercase: true, trim: true },
+
+  // Gateway info
+  paymentMethod: { 
+    type: String, 
+    required: true,
+    enum: ["esewa", "khalti", "stripe", "fonepay", "imepay", "cash"], // add more as needed
+  },
+  gatewayTransactionId: { type: String }, // e.g., Stripe payment_intent, eSewa refId
+  gatewayStatus: { 
+    type: String, 
+    enum: ["succeeded", "pending", "failed", "requires_action", "canceled"],
+    default: "pending"
+  },
+
+  // Internal status
+  status: { 
+    type: String, 
+    enum: ["pending", "completed", "failed", "refunded"],
+    default: "pending"
+  },
+
+  // eSewa/Khalti specific fields
+  transactionUUID: { type: String, unique: true, sparse: true }, // Your internal UUID
+  pid: { type: String }, // Product ID sent to gateway
+
+  // Timestamps
+  paidAt: { type: Date }, // Set when status becomes "completed"
+  failureReason: { type: String },
+
+}, { timestamps: true });
+
+// Indexes for performance
+paymentSchema.index({ bookingId: 1 });
+paymentSchema.index({ userId: 1 });
+paymentSchema.index({ transactionUUID: 1 });
+paymentSchema.index({ gatewayTransactionId: 1 });
+paymentSchema.index({ status: 1, createdAt: -1 });
+paymentSchema.index({ paidAt: -1 });
+
 class PaymentClass {
-  constructor(bookingId, amount, method) {
-    this.bookingId = bookingId;
-    this.amount = amount;
-    this.method = method;
-    this.status = "Pending";
+  // Mark payment as successful
+  async markAsCompleted({ gatewayTransactionId, gatewayStatus, paidAt = new Date() }) {
+    this.gatewayTransactionId = gatewayTransactionId || this.gatewayTransactionId;
+    this.gatewayStatus = gatewayStatus || "succeeded";
+    this.status = "completed";
+    this.paidAt = paidAt;
+
+    return await this.save();
   }
 
-  /**
-   * Process payment (simulate gateway integration)
-   */
-  async processPayment() {
-    console.log(`Processing ${this.method} payment of ₹${this.amount} for booking ${this.bookingId}`);
+  // Mark payment as failed
+  async markAsFailed({ failureReason, gatewayStatus = "failed" }) {
+    this.gatewayStatus = gatewayStatus;
+    this.status = "failed";
+    this.failureReason = failureReason;
 
-    try {
-      // simulate success (later integrate Stripe, PayPal, Razorpay etc.)
-      this.status = "Completed";
-      await this.save();
-
-      const booking = await Booking.findById(this.bookingId);
-      if (booking) {
-        booking.status = "Confirmed";
-        await booking.save();
-      }
-      return this;
-    } catch (err) {
-      this.status = "Failed";
-      await this.save();
-      throw new Error("Payment failed: " + err.message);
-    }
+    return await this.save();
   }
 
-  /**
-   * Refund payment
-   */
-  async refundPayment() {
-    if (this.status !== "Completed") {
-      throw new Error("Only completed payments can be refunded");
-    }
-
-    this.status = "Refunded";
-    await this.save();
-
-    const booking = await Booking.findById(this.bookingId);
-    if (booking) {
-      booking.status = "Cancelled";
-      await booking.save();
-    }
-
-    console.log(`Refund of ₹${this.amount} processed for booking ${this.bookingId}`);
-    return this;
+  // Refund (simple status update - actual refund logic should be in service)
+  async markAsRefunded() {
+    this.status = "refunded";
+    return await this.save();
   }
 
-  /**
-   * Get Payment Status
-   */
-  async getStatus() {
-    return { id: this._id, status: this.status, amount: this.amount, method: this.method };
+  // Static: Create a new payment record (before redirecting to gateway)
+  static async createPendingPayment({
+    bookingId,
+    userId,
+    movieTitle,
+    cinemaName,
+    showDate,
+    showTime,
+    seats,
+    amount,
+    paymentMethod,
+    transactionUUID,
+    pid,
+  }) {
+    const payment = new this({
+      bookingId,
+      userId,
+      movieTitle,
+      cinemaName,
+      showDate,
+      showTime,
+      seats,
+      amount,
+      paymentMethod,
+      transactionUUID,
+      pid,
+      status: "pending",
+      gatewayStatus: "pending",
+    });
+
+    return await payment.save();
   }
 
-  /**
-   * Retry a failed payment
-   */
-  async retryPayment() {
-    if (this.status !== "Failed") {
-      throw new Error("Only failed payments can be retried");
-    }
-    return this.processPayment();
+  // Find by internal transaction UUID (useful for eSewa/Khalti callback)
+  static async findByTransactionUUID(uuid) {
+    return await this.findOne({ transactionUUID: uuid });
   }
 
-  /**
-   * Link payment with booking details
-   */
-  async getBookingDetails() {
-    return await Booking.findById(this.bookingId).populate("showId userId");
+  // Find user's payment history
+  static async getUserPayments(userId, { limit = 10, skip = 0, status } = {}) {
+    const query = { userId };
+    if (status) query.status = status;
+
+    return await this.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+  }
+
+  // Get payment receipt info
+  getReceiptInfo() {
+    return {
+      id: this._id,
+      bookingId: this.bookingId,
+      movieTitle: this.movieTitle,
+      cinemaName: this.cinemaName,
+      showDate: this.showDate,
+      showTime: this.showTime,
+      seats: this.seats,
+      amount: this.amount,
+      currency: this.currency,
+      paymentMethod: this.paymentMethod,
+      status: this.status,
+      paidAt: this.paidAt,
+      transactionUUID: this.transactionUUID,
+      gatewayTransactionId: this.gatewayTransactionId,
+    };
   }
 }
 
-// Attach class
+// Load class methods
 paymentSchema.loadClass(PaymentClass);
 
 // Export model
