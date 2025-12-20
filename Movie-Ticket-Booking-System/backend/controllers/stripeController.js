@@ -2,6 +2,8 @@
 import Stripe from 'stripe';
 import Payment from '../models/Payment.js';
 import Booking from '../models/Booking.js';
+import {lockSeats} from './showController.js';
+
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -11,16 +13,17 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 export const createStripeCheckoutSession = async (req, res) => {
   try {
     const {
+      showId,
       amount,
       movieTitle,
       cinemaName,
       showDate,
       showTime,
       seats,
-      bookingId,
+      // bookingId,
     } = req.body;
 
-    if (!amount || !bookingId) {
+    if (!amount || !showId) {
       return res.status(400).json({
         success: false,
         message: 'Missing required fields',
@@ -32,7 +35,7 @@ export const createStripeCheckoutSession = async (req, res) => {
     const transactionUUID = `STRIPE-${Date.now()}`;
 
     const payment = await Payment.createPendingPayment({
-      bookingId,
+      showId,
       userId,
       movieTitle,
       cinemaName,
@@ -42,7 +45,7 @@ export const createStripeCheckoutSession = async (req, res) => {
       amount,
       paymentMethod: 'stripe',
       transactionUUID,
-      pid: `STR-${bookingId.slice(-8).toUpperCase()}`,
+      pid: `STR-${showId.slice(-8).toUpperCase()}`,
     });
 
     const session = await stripe.checkout.sessions.create({
@@ -119,7 +122,7 @@ export const confirmStripeCheckout = async (req, res) => {
     // Create booking ONLY ONCE
     const booking = await Booking.create({
       userId: payment.userId,
-      showId: payment.bookingId,
+      showId: payment.showId,
       seatIds: payment.seats,
       totalPrice: payment.amount,
       status: 'Confirmed',

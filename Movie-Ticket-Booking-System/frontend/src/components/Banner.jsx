@@ -1,52 +1,28 @@
-// components/MovieHeroCarousel.jsx
+// components/Banner.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
-const Banner = ({ className = '' }) => {
+const Banner = ({ movies = [] }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAutoPlay, setIsAutoPlay] = useState(true);
   const intervalRef = useRef(null);
   const touchStartX = useRef(0);
   const touchEndX = useRef(0);
 
-  const slides = [
-    {
-      id: 1,
-      title: "जारि २",
-      language: "Nepali",
-      formats: ["2D", "4K"],
-      price: "From ₹199",
-      showtime: "Earliest: 6:30 PM",
-      releaseDate: "In Cinemas Now",
-      image: "https://picsum.photos/1920/1080?random=10",
-      link: "/movie/jaari-2",
-    },
-    {
-      id: 2,
-      title: "Wicked: For Good",
-      language: "English",
-      formats: ["IMAX", "4DX"],
-      price: "From ₹399",
-      showtime: "Earliest: 7:00 PM",
-      releaseDate: "November 21",
-      image: "https://picsum.photos/1920/1080?random=11",
-      link: "/movie/wicked-2",
-    },
-    {
-      id: 3,
-      title: "Captain America: Brave New World",
-      language: "English • Hindi • Tamil • Telugu",
-      formats: ["IMAX 3D"],
-      price: "From ₹349",
-      showtime: "Earliest: 8:15 PM",
-      releaseDate: "February 14, 2025",
-      image: "https://picsum.photos/1920/1080?random=12",
-      link: "/movie/captain-america",
-    },
-  ];
+  // If no movies, show fallback
+  if (movies.length === 0) {
+    return (
+      <div className="relative w-full h-screen md:h-[85vh] bg-gray-900 flex items-center justify-center text-white">
+        <p className="text-3xl">No featured movies available</p>
+      </div>
+    );
+  }
 
-  // Auto-play logic (disabled on mobile)
+  // Use only first 4 now-showing movies
+  const featuredMovies = movies.slice(0, 4);
+
+  // Auto-play (disabled on mobile)
   useEffect(() => {
     const isMobile = window.innerWidth < 768;
     setIsAutoPlay(!isMobile);
@@ -56,17 +32,16 @@ const Banner = ({ className = '' }) => {
     if (!isAutoPlay) return;
 
     intervalRef.current = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % slides.length);
+      setCurrentIndex((prev) => (prev + 1) % featuredMovies.length);
     }, 6000);
 
     return () => clearInterval(intervalRef.current);
-  }, [isAutoPlay, slides.length]);
+  }, [isAutoPlay, featuredMovies.length]);
 
-  const goPrev = () => setCurrentIndex((prev) => (prev - 1 + slides.length) % slides.length);
-  const goNext = () => setCurrentIndex((prev) => (prev + 1) % slides.length);
+  const goPrev = () => setCurrentIndex((prev) => (prev - 1 + featuredMovies.length) % featuredMovies.length);
+  const goNext = () => setCurrentIndex((prev) => (prev + 1) % featuredMovies.length);
   const goToSlide = (index) => setCurrentIndex(index);
 
-  // Touch swipe
   const handleTouchStart = (e) => touchStartX.current = e.touches[0].clientX;
   const handleTouchMove = (e) => touchEndX.current = e.touches[0].clientX;
   const handleTouchEnd = () => {
@@ -76,80 +51,82 @@ const Banner = ({ className = '' }) => {
     touchStartX.current = touchEndX.current = 0;
   };
 
-  const current = slides[currentIndex];
+  const current = featuredMovies[currentIndex];
+
+  // Build full image URL (same as in Card)
+  const getImageUrl = (filename) => {
+    if (!filename) return 'https://picsum.photos/1920/1080?random=' + currentIndex;
+    return `${import.meta.env.VITE_BACKEND_BASE_URL || 'http://localhost:5000'}/posters/${filename}`;
+  };
+
+  const bannerImage = getImageUrl(current.bannerPoster || current.profilePoster);
 
   return (
     <div
-      className={`relative w-full h-screen md:h-[85vh] overflow-hidden bg-black ${className}`}
+      className="relative w-full h-screen md:h-[85vh] overflow-hidden bg-black"
       onMouseEnter={() => setIsAutoPlay(false)}
       onMouseLeave={() => setIsAutoPlay(window.innerWidth >= 768)}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      role="region"
-      aria-label="Featured movies carousel"
     >
       {/* Slides */}
       <div
         className="flex transition-transform duration-700 ease-out h-full"
         style={{ transform: `translateX(-${currentIndex * 100}%)` }}
       >
-        {slides.map((slide, index) => (
-          <div key={slide.id} className="w-full flex-shrink-0 relative h-full">
-            {index === 0 && <link rel="preload" as="image" href={slide.image} />}
-            <img
-              src={slide.image}
-              alt={`Poster for ${slide.title}`}
-              className="w-full h-full object-cover"
-              loading={index === 0 ? "eager" : "lazy"}
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
-
-            {/* Content */}
-            <div className="absolute bottom-0 left-0 right-0 pb-10 md:pb-16">
-              <div className="max-w-7xl mx-auto px-6 md:px-10 flex justify-between items-end">
-                {/* Left Side */}
-                <div className="text-white max-w-2xl">
-                  <div className="flex gap-3 mb-4">
-                    {slide.formats.map((f) => (
-                      <span key={f} className="px-3 py-1.5 text-xs font-bold bg-yellow-400 text-black rounded uppercase">
-                        {f}
-                      </span>
-                    ))}
-                  </div>
-
-                  <h1 className="text-5xl md:text-7xl lg:text-8xl font-black leading-none mb-3 drop-shadow-2xl">
-                    {slide.title}
-                  </h1>
-
-                  <p className="text-lg md:text-xl text-gray-200 mb-3">{slide.language}</p>
-
-                  <div className="flex items-center gap-6 text-base md:text-lg mb-8">
-                    <span className="text-green-400 font-bold">{slide.price}</span>
-                    <span className="text-gray-300">• {slide.showtime}</span>
-                  </div>
-
-                  {/* GREEN BOOK TICKETS BUTTON */}
-                  <Link
-                    to={slide.link}
-                    className="inline-flex items-center gap-3 bg-green-600 hover:bg-green-500 active:bg-green-700 text-white font-bold text-lg md:text-xl px-10 py-5 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-xl hover:shadow-green-500/50"
-                  >
-                    Book Tickets
-                    <ChevronRight className="w-6 h-6" />
-                  </Link>
-                </div>
-
-                {/* Right Side - Release Date */}
-                <div className="hidden md:block text-right">
-                  <p className="text-3xl font-bold text-white opacity-90">{slide.releaseDate}</p>
-                </div>
-              </div>
+        {featuredMovies.map((movie, index) => {
+          const imgUrl = getImageUrl(movie.bannerPoster || movie.profilePoster);
+          return (
+            <div key={movie._id} className="w-full flex-shrink-0 relative h-full">
+              <img
+                src={imgUrl}
+                alt={`Banner for ${movie.title}`}
+                className="w-full h-full object-cover"
+                loading={index === 0 ? "eager" : "lazy"}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
-      {/* Navigation Arrows */}
+      {/* Content Overlay */}
+      <div className="absolute inset-0 flex items-end pb-10 md:pb-16">
+        <div className="max-w-7xl mx-auto px-6 md:px-10 w-full flex justify-between items-end">
+          <div className="text-white max-w-2xl">
+            {/* Formats (optional - you can add later) */}
+            <div className="flex gap-3 mb-4">
+              <span className="px-3 py-1.5 text-xs font-bold bg-yellow-400 text-black rounded uppercase">
+                {current.language || 'Nepali'}
+              </span>
+            </div>
+
+            <h1 className="text-5xl md:text-7xl lg:text-8xl font-black leading-none mb-3 drop-shadow-2xl">
+              {current.title}
+            </h1>
+
+            <p className="text-lg md:text-xl text-gray-200 mb-8">
+              In Cinemas Now • Book your tickets today!
+            </p>
+
+            {/* BOOK TICKETS BUTTON */}
+            <Link
+              to={`/movies/now-showing?movieId=${current._id}`}
+              className="inline-flex items-center gap-3 bg-green-600 hover:bg-green-500 active:bg-green-700 text-white font-bold text-lg md:text-xl px-10 py-5 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-xl hover:shadow-green-500/50"
+            >
+              Book Tickets
+              <ChevronRight className="w-6 h-6" />
+            </Link>
+          </div>
+
+          <div className="hidden md:block text-right">
+            <p className="text-3xl font-bold text-white opacity-90">Now Showing</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Arrows */}
       <button onClick={goPrev} className="absolute left-4 md:left-8 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 backdrop-blur text-white p-4 rounded-full z-10 transition">
         <ChevronLeft className="w-8 h-8" />
       </button>
@@ -157,9 +134,9 @@ const Banner = ({ className = '' }) => {
         <ChevronRight className="w-8 h-8" />
       </button>
 
-      {/* GREEN PAGINATION DOTS */}
+      {/* Dots */}
       <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-3 z-10">
-        {slides.map((_, index) => (
+        {featuredMovies.map((_, index) => (
           <button
             key={index}
             onClick={() => goToSlide(index)}
@@ -168,7 +145,6 @@ const Banner = ({ className = '' }) => {
                 ? 'w-12 h-3 bg-green-500 rounded-full shadow-lg shadow-green-500/50'
                 : 'w-3 h-3 bg-white/60 hover:bg-white rounded-full'
             }`}
-            aria-label={`Go to slide ${index + 1}`}
           />
         ))}
       </div>

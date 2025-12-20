@@ -20,6 +20,7 @@ export const createPayment = async (req, res) => {
   try {
     const {
       bookingId,
+      showId,
       movieTitle,
       cinemaName,
       showDate,
@@ -38,7 +39,7 @@ export const createPayment = async (req, res) => {
     const pid = `TKT-${bookingId.toString().slice(-8).toUpperCase()}`;
 
     const payment = await Payment.createPendingPayment({
-      bookingId,
+      showId,
       userId,
       movieTitle,
       cinemaName,

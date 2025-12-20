@@ -1,13 +1,55 @@
 // pages/ContactPage.jsx
-import React from 'react';
+import React, { useRef, useState } from 'react';
+import { toast } from 'react-toastify';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import emailjs from '@emailjs/browser';
 
 const ContactPage = () => {
+  const form = useRef();
+  const [loading, setLoading] = useState(false);
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Placeholder for form submission (e.g., integrate with backend or toast notification)
-    alert('Message sent! We\'ll get back to you soon.');
+    setLoading(true);
+
+    emailjs
+      .sendForm(
+        'service_sb26awc',     // Your Service ID
+        'template_bfeayhy',    // Your Template ID
+        form.current,
+        'r1z4dOUKeQEBcpdoh'    // Your Public Key
+      )
+      .then(
+        (result) => {
+          // SUCCESS TOAST
+          toast.success('🎉 Thank you! Your message has been sent successfully. We\'ll get back to you soon.', {
+            position: "top-center",
+            autoClose: 5000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+          });
+
+          form.current.reset(); // Clear the form
+          setLoading(false);
+        },
+        (error) => {
+          // ERROR TOAST
+          toast.error('❌ Oops! Failed to send message. Please check your connection and try again.', {
+            position: "top-center",
+            autoClose: 6000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+          });
+
+          console.error('EmailJS Error:', error);
+          setLoading(false);
+        }
+      );
   };
 
   return (
@@ -87,10 +129,11 @@ const ContactPage = () => {
             <div className="lg:col-span-2">
               <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 text-white">
                 <h2 className="text-2xl font-semibold mb-6">Send Us a Message</h2>
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form ref={form} onSubmit={handleSubmit} className="space-y-4">
                   <div>
                     <input
                       type="text"
+                      name="name"
                       placeholder="Your Name"
                       required
                       className="w-full p-4 rounded-md bg-white/20 border border-white/30 text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent transition-all"
@@ -99,6 +142,7 @@ const ContactPage = () => {
                   <div>
                     <input
                       type="email"
+                      name="email"
                       placeholder="Your Email"
                       required
                       className="w-full p-4 rounded-md bg-white/20 border border-white/30 text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent transition-all"
@@ -106,6 +150,7 @@ const ContactPage = () => {
                   </div>
                   <div>
                     <textarea
+                      name="message"
                       placeholder="Your Message"
                       rows={5}
                       required
@@ -114,9 +159,10 @@ const ContactPage = () => {
                   </div>
                   <button
                     type="submit"
-                    className="w-full bg-green-600 hover:bg-green-700 text-white py-3 px-6 rounded-md text-lg font-semibold transition-colors shadow-md"
+                    disabled={loading}
+                    className="w-full bg-green-600 hover:bg-green-700 disabled:bg-green-800 disabled:cursor-not-allowed text-white py-4 px-6 rounded-md text-lg font-semibold transition-all duration-300 shadow-lg hover:shadow-green-500/50"
                   >
-                    Send Message
+                    {loading ? 'Sending Message...' : 'Send Message'}
                   </button>
                 </form>
               </div>

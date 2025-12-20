@@ -278,11 +278,11 @@ const upcomingMovies = movies.filter(movie => movie.status === 'Upcoming');
       />
 
       {/* Banner only when not searching */}
-      {!isSearching && (
-        <div className="pt-16 w-full h-[calc(100vh-4rem)]">
-          <Banner className="w-full h-full object-cover" />
-        </div>
-      )}
+{!isSearching && (
+  <div className="pt-16 w-full h-[calc(100vh-4rem)]">
+    <Banner movies={nowShowingMovies} />  {/* ← Pass real data */}
+  </div>
+)}
 
       <main className={`relative z-10 ${isSearching ? 'pt-24 px-8' : 'pt-16 px-8'} pb-12`}>
         {/* Search Results View */}

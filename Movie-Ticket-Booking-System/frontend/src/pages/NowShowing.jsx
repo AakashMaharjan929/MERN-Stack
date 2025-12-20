@@ -249,8 +249,11 @@ const handleProceedToPayment = async () => {
     return;
   }
 
+console.log("Booking Data:", {
+    showId: selectedShow.showId
+});
   const bookingData = {
-    bookingId: selectedShow.showId,
+    showId: selectedShow.showId,
     movieTitle: movie.title,
     cinemaName: selectedShow.cinema,
     showDate: selectedDate.date,
