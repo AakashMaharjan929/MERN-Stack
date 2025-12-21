@@ -42,44 +42,117 @@ const MyTickets = () => {
   const [activeTab, setActiveTab] = useState('upcoming'); // New: Upcoming / Past tabs
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (!storedUser) {
-      navigate('/login');
-      return;
-    }
+useEffect(() => {
+  const token = localStorage.getItem('token');
+  const storedUser = localStorage.getItem('user');
 
-    try {
-      const parsed = JSON.parse(storedUser);
-      setUser(parsed);
+  // If no token, definitely not logged in
+  if (!token) {
+    toast.info('Please log in to view your tickets');
+    navigate('/login');
+    return;
+  }
 
-      const fetchTickets = async () => {
-        try {
-          const token = localStorage.getItem('token');
-          const res = await axios.get(`${baseUrl}/payment/my`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
+  // If no stored user data, try to fetch fresh profile (optional, if you have /me endpoint)
+  // Or just redirect to login safely
+  if (!storedUser) {
+    console.log('No stored user, but have token - will try to load tickets anyway');
+    // Don't redirect immediately - try to fetch tickets first
+    setLoading(true);
+    
+    const fetchTicketsWithoutUser = async () => {
+      try {
+        const res = await axios.get(`${baseUrl}/payment/my`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
 
-          if (res.data.success && Array.isArray(res.data.tickets)) {
-            setTickets(res.data.tickets);
-          } else {
-            setTickets([]);
-          }
-        } catch (err) {
-          console.error(err);
-          toast.error('Failed to load tickets');
-        } finally {
+        if (res.data.success && Array.isArray(res.data.tickets)) {
+          setTickets(res.data.tickets);
           setLoading(false);
+          // Success - tickets loaded, user can stay on page
+          return;
         }
-      };
-
-      fetchTickets();
-    } catch (err) {
-      localStorage.removeItem('user');
+      } catch (err) {
+        console.error('Failed to load tickets:', err);
+      }
+      
+      // Only redirect if tickets couldn't be loaded
+      setLoading(false);
+      toast.info('Session expired. Please log in again.');
       navigate('/login');
-    }
-  }, [navigate]);
+    };
+    
+    fetchTicketsWithoutUser();
+    return;
+  }
 
+  let parsedUser;
+  try {
+    parsedUser = JSON.parse(storedUser);
+    console.log('Parsed user from localStorage:', parsedUser);
+    // Basic validation: user should be an object
+    if (!parsedUser || typeof parsedUser !== 'object') {
+      throw new Error('Invalid user data structure');
+    }
+    setUser(parsedUser);
+  } catch (err) {
+    console.warn('Invalid user data in localStorage:', err);
+    // Don't redirect immediately - try to load tickets with just the token
+    console.log('User data invalid, but trying to load tickets anyway with token');
+    
+    const fetchTicketsWithoutValidUser = async () => {
+      try {
+        const res = await axios.get(`${baseUrl}/payment/my`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (res.data.success && Array.isArray(res.data.tickets)) {
+          setTickets(res.data.tickets);
+          setLoading(false);
+          return;
+        }
+      } catch (err) {
+        console.error('Failed to load tickets:', err);
+      }
+      
+      // Only redirect if tickets couldn't be loaded
+      localStorage.removeItem('user');
+      localStorage.removeItem('token');
+      toast.info('Session issue detected. Please log in again.');
+      navigate('/login');
+    };
+    
+    fetchTicketsWithoutValidUser();
+    return;
+  }
+
+  const fetchTickets = async () => {
+    try {
+      const res = await axios.get(`${baseUrl}/payment/my`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (res.data.success && Array.isArray(res.data.tickets)) {
+        setTickets(res.data.tickets);
+      } else {
+        setTickets([]);
+      }
+    } catch (err) {
+      if (err.response?.status === 401) {
+        toast.error('Session expired. Please log in again.');
+        localStorage.clear(); // or remove token/user
+        navigate('/login');
+      } else {
+        console.error(err);
+        toast.error('Failed to load tickets');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchTickets();
+}, [navigate]);
   // Determine if a ticket is upcoming (based on showDateTime format like "24 DEC | 24 DEC 7:14 PM")
   const isUpcoming = (ticket) => {
     if (!ticket.showDateTime) return true;
@@ -212,8 +285,7 @@ const MyTickets = () => {
     );
   }
 
-  if (!user) return null;
-
+  // Allow rendering even without user data if tickets are loaded
   const displayedTickets = activeTab === 'upcoming' ? upcomingTickets : pastTickets;
 
   return (

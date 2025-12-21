@@ -42,6 +42,7 @@ import Schedule from '../pages/Schedule';
 
 import MyTickets from '../pages/MyTickets';
 import StripeSuccess from '../pages/StripeSuccess';
+import PaymentSuccess from '../pages/PaymentSuccess';
 
 function AppRoutes() {
   return (
@@ -115,6 +116,8 @@ function AppRoutes() {
         <Route path="/my-tickets" element={<MyTickets />} />
 
         <Route path="/stripe-success" element={<StripeSuccess />} />
+        <Route path="/payment-success" element={<PaymentSuccess />} />
+        <Route path="/payment-failed" element={<div className="min-h-screen bg-gray-900 text-white flex items-center justify-center flex-col"><h1 className="text-4xl font-bold text-red-400 mb-4">Payment Failed</h1><p>Your payment could not be processed. Please try again.</p></div>} />
 
         {/* Catch-all for unmatched routes */}
         <Route path="*" element={<div className="text-center py-20 text-gray-800">404 - Page Not Found</div>} />

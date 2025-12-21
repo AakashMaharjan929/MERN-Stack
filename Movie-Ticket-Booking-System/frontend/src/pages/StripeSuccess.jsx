@@ -16,7 +16,7 @@ const StripeSuccess = () => {
 
     if (!sessionId || !paymentId) {
       toast.error('Invalid payment session');
-      navigate('/');
+      // navigate('/');
       return;
     }
 
@@ -66,7 +66,7 @@ const StripeSuccess = () => {
           isLoading: false,
           autoClose: 6000,
         });
-        setTimeout(() => navigate('/'), 3000);
+        // setTimeout(() => navigate('/'), 3000);
       }
     };
 

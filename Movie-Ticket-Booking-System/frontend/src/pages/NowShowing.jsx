@@ -27,11 +27,13 @@ const NowShowing = () => {
   const [selectedCity, setSelectedCity] = useState("Kathmandu");
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedLanguage, setSelectedLanguage] = useState("all");
+  const [selectedTheater, setSelectedTheater] = useState("all");
   const [selectedShow, setSelectedShow] = useState(null);
   const [selectedSeats, setSelectedSeats] = useState([]);
   const [paymentMethod, setPaymentMethod] = useState(null);
 
   const seatSectionRef = useRef(null);
+  const showsSectionRef = useRef(null);
 
   // Helper: Extract string ID
   const getIdString = (id) => {
@@ -67,7 +69,32 @@ const NowShowing = () => {
     setSelectedDate(dates[0]); // Today
   }, []);
 
-  // Scroll to seat selection when show is selected
+  // Auto-select first date with shows if current date has no shows
+  useEffect(() => {
+    if (shows.length === 0 || !selectedDate) return;
+
+    // Check if there are shows for the currently selected date
+    const hasShowsForSelectedDate = shows.some(show => {
+      if (!['Upcoming'].includes(show.status)) return false;
+      const showDateStr = new Date(show.startTime).toISOString().split('T')[0];
+      return showDateStr === selectedDate.date;
+    });
+
+    // If no shows for selected date, find the first date with shows
+    if (!hasShowsForSelectedDate) {
+      for (const date of dates) {
+        const hasShows = shows.some(show => {
+          if (!['Upcoming'].includes(show.status)) return false;
+          const showDateStr = new Date(show.startTime).toISOString().split('T')[0];
+          return showDateStr === date.date;
+        });
+        if (hasShows) {
+          setSelectedDate(date);
+          break;
+        }
+      }
+    }
+  }, [shows, dates]);
   useEffect(() => {
     if (selectedShow && seatSectionRef.current) {
       seatSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -126,6 +153,12 @@ const NowShowing = () => {
   // Extract unique cities
   const cities = ['all', ...new Set(theaters.map(t => t.location.city))].sort();
 
+  // Extract unique theaters for selected city
+  const theatersInCity = selectedCity === 'all' 
+    ? theaters 
+    : theaters.filter(t => t.location.city === selectedCity);
+  const theaterNames = ['all', ...new Set(theatersInCity.map(t => t.name))].sort();
+
   // Filter shows
   const filteredShows = shows.filter(show => {
     if (!['Upcoming'].includes(show.status)) return false;
@@ -140,6 +173,8 @@ const NowShowing = () => {
 
     const showCity = theater.location?.city || 'Unknown';
     if (selectedCity !== "all" && showCity !== selectedCity) return false;
+
+    if (selectedTheater !== "all" && theater.name !== selectedTheater) return false;
 
     if (selectedLanguage !== "all" && show.showType !== selectedLanguage) return false;
 
@@ -183,8 +218,60 @@ const NowShowing = () => {
 
   const cinemas = Object.keys(groupedShows);
 
+  // Group all shows by date (for "All Available Shows" section)
+  const allShowsByDate = {};
+  shows.forEach(show => {
+    if (!['Upcoming'].includes(show.status)) return;
+    
+    const theater = theaters.find(t =>
+      t.screens.some(screen => getIdString(screen) === getIdString(show.screenId))
+    );
+    if (!theater) return;
+
+    const showCity = theater.location?.city || 'Unknown';
+    if (selectedCity !== "all" && showCity !== selectedCity) return;
+
+    if (selectedTheater !== "all" && theater.name !== selectedTheater) return;
+
+    const showDateStr = new Date(show.startTime).toISOString().split('T')[0];
+    const showDate = new Date(show.startTime);
+    const dateLabel = dates.find(d => d.date === showDateStr)?.label || showDateStr;
+
+    if (!allShowsByDate[showDateStr]) {
+      allShowsByDate[showDateStr] = { label: dateLabel, shows: [] };
+    }
+
+    const timeStr = showDate.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    }).toUpperCase();
+
+    const validSeats = show.availableSeats.filter(s => s !== null);
+    const availableCount = validSeats.filter(s => !s.isBooked).length;
+
+    allShowsByDate[showDateStr].shows.push({
+      showId: show._id,
+      time: timeStr,
+      availableSeats: availableCount,
+      theater: theater.name,
+      language: show.showType || 'Regular',
+      fullShow: show,
+      cinema: theater.name
+    });
+  });
+
   const getAvailabilityColor = (seats) => seats <= 5 ? 'bg-red-600' : seats <= 20 ? 'bg-orange-500' : 'bg-green-600';
   const getAvailabilityText = (seats) => seats <= 5 ? 'Filling Fast' : seats <= 20 ? 'Limited' : 'Available';
+
+  // Check if a date has any shows
+  const hasShowsOnDate = (dateStr) => {
+    return shows.some(show => {
+      if (!['Upcoming'].includes(show.status)) return false;
+      const showDateStr = new Date(show.startTime).toISOString().split('T')[0];
+      return showDateStr === dateStr;
+    });
+  };
 
   const pickBestSeats = () => {
     if (!selectedShow?.fullShow) return;
@@ -239,6 +326,7 @@ const NowShowing = () => {
   const totalAmount = calculateTotal();
 
 const handleProceedToPayment = async () => {
+  const secretKey = '8gBm/:&EnhH.1/q';  // Test secret key
   if (selectedSeats.length === 0) {
     toast.error("Please select at least one seat");
     return;
@@ -314,10 +402,119 @@ console.log("Booking Data:", {
   }
 }
 
-  // eSewa part remains unchanged
-  else if (paymentMethod === 'esewa') {
-    // ... your existing eSewa code
+  // eSewa payment flow
+ else if (paymentMethod === 'esewa') {
+  if (selectedSeats.length === 0) {
+    toast.error("Please select at least one seat");
+    return;
   }
+
+  const isTestMode = import.meta.env.VITE_ESEWA_TEST_MODE === 'true';
+  const merchantId = import.meta.env.VITE_ESEWA_MERCHANT_ID;
+
+  if (!merchantId) {
+    toast.error("eSewa configuration missing");
+    return;
+  }
+
+  const toastId = toast.loading("Initializing eSewa payment...");
+
+  try {
+    // Step 1: Create pending payment record in backend
+    const response = await fetch(`${import.meta.env.VITE_BACKEND_BASE_URL}/esewa/initialize`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      credentials: 'include',
+      body: JSON.stringify({
+        showId: selectedShow.showId,
+        movieTitle: movie.title,
+        cinemaName: selectedShow.cinema,
+        showDate: selectedDate.date,
+        showTime: selectedShow.time,
+        seats: selectedSeats,
+        amount: totalAmount
+      })
+    });
+
+    const data = await response.json();
+
+    if (!data.success) {
+      toast.update(toastId, {
+        render: data.message || "Failed to initialize payment",
+        type: "error",
+        isLoading: false,
+        autoClose: 5000
+      });
+      return;
+    }
+
+    // Step 2: Save transaction details for verification
+    localStorage.setItem('pendingEsewaBooking', JSON.stringify({
+      transactionUUID: data.transactionUUID,
+      paymentId: data.paymentId,
+      amount: data.amount,
+      showId: selectedShow._id,
+      seats: selectedSeats
+    }));
+
+    const successUrl = import.meta.env.VITE_ESEWA_SUCCESS_URL || 'http://localhost:5173/payment-success';
+    const failureUrl = import.meta.env.VITE_ESEWA_FAILURE_URL || 'http://localhost:5173/payment-failed';
+
+    // Step 3: Build eSewa GET parameters
+    const params = new URLSearchParams({
+      amt: data.amount,
+      psc: 0,
+      pdc: 0,
+      txAmt: 0,
+      tAmt: data.amount,
+      pid: data.transactionUUID,
+      scd: merchantId,
+      su: successUrl,
+      fu: failureUrl
+    });
+
+    const esewaUrl = isTestMode
+      ? `https://rc-epay.esewa.com.np/epay/main?${params.toString()}`
+      : `https://esewa.com.np/epay/main?${params.toString()}`;
+
+    // Add test mode - redirect directly to success for testing
+    if (isTestMode && import.meta.env.VITE_ESEWA_USE_MOCK === 'true') {
+      // Mock eSewa response for testing
+      const mockSuccessUrl = `${successUrl}?oid=${data.transactionUUID}&refId=mock-${Date.now()}&amt=${data.amount}`;
+      toast.update(toastId, {
+        render: "Mock eSewa payment (dev mode)",
+        type: "info",
+        isLoading: false,
+        autoClose: 2000
+      });
+      setTimeout(() => {
+        window.location.href = mockSuccessUrl;
+      }, 1500);
+      return;
+    }
+
+    toast.update(toastId, {
+      render: "Redirecting to eSewa...",
+      type: "success",
+      isLoading: false,
+      autoClose: 2000
+    });
+    
+    window.location.href = esewaUrl;
+
+  } catch (err) {
+    console.error(err);
+    toast.update(toastId, {
+      render: "Network error. Please try again.",
+      type: "error",
+      isLoading: false,
+      autoClose: 5000
+    });
+  }
+}
 };
 
   const getImageUrl = (filename) => {
@@ -372,6 +569,41 @@ console.log("Booking Data:", {
                 {movie.description || movie.synopsis || 'No synopsis available.'}
               </p>
             </div>
+
+            {/* Director & Cast */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Director */}
+              <div className="bg-white/10 backdrop-blur-lg rounded-3xl p-8 border border-white/20">
+                <h3 className="text-2xl font-bold mb-4 text-green-400">Director</h3>
+                <div className="flex flex-wrap gap-3">
+                  {movie.director && movie.director.length > 0 ? (
+                    movie.director.map((dir, idx) => (
+                      <span key={idx} className="bg-green-600/20 border border-green-500 px-4 py-2 rounded-full text-sm font-medium text-green-300">
+                        {dir}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-gray-400">Unknown</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Cast */}
+              <div className="bg-white/10 backdrop-blur-lg rounded-3xl p-8 border border-white/20">
+                <h3 className="text-2xl font-bold mb-4 text-green-400">Cast</h3>
+                <div className="flex flex-wrap gap-3">
+                  {movie.cast && movie.cast.length > 0 ? (
+                    movie.cast.map((actor, idx) => (
+                      <span key={idx} className="bg-blue-600/20 border border-blue-500 px-4 py-2 rounded-full text-sm font-medium text-blue-300">
+                        {actor}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-gray-400">Unknown</span>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -396,23 +628,50 @@ console.log("Booking Data:", {
           </div>
         </div>
 
+        {/* Theater Filter */}
+        <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 mb-8 shadow-2xl">
+          <label className="text-sm opacity-75">Select Cinema/Theater</label>
+          <div className="flex flex-wrap gap-3 mt-3">
+            {theaterNames.map(theater => (
+              <button
+                key={theater}
+                onClick={() => setSelectedTheater(theater)}
+                className={`px-6 py-3 rounded-full font-medium transition-all ${
+                  selectedTheater === theater ? 'bg-green-600 text-white' : 'bg-white/20 hover:bg-white/30'
+                }`}
+              >
+                {theater === 'all' ? 'All Cinemas' : theater}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Date Carousel */}
         <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 mb-8 shadow-2xl overflow-x-auto">
           <div className="flex gap-4 min-w-max">
-            {dates.map((d, i) => (
-              <button
-                key={i}
-                onClick={() => setSelectedDate(d)}
-                className={`px-6 py-4 rounded-xl text-center transition-all min-w-24 ${
-                  selectedDate?.date === d.date ? 'bg-green-600 text-white shadow-lg scale-105' : 'bg-white/20 hover:bg-white/30'
-                }`}
-              >
-                <div className="text-xs opacity-75">{d.label.split(' ')[0]}</div>
-                <div className="font-bold">
-                  {d.label.includes('Today') ? 'Today' : d.label.includes('Tomorrow') ? 'Tomorrow' : d.label.split(' ').slice(1).join(' ')}
-                </div>
-              </button>
-            ))}
+            {dates.map((d, i) => {
+              const dateHasShows = hasShowsOnDate(d.date);
+              return (
+                <button
+                  key={i}
+                  onClick={() => dateHasShows && setSelectedDate(d)}
+                  disabled={!dateHasShows}
+                  className={`px-6 py-4 rounded-xl text-center transition-all min-w-24 ${
+                    !dateHasShows
+                      ? 'bg-gray-700/50 text-gray-500 opacity-40 cursor-not-allowed'
+                      : selectedDate?.date === d.date
+                      ? 'bg-green-600 text-white shadow-lg scale-105'
+                      : 'bg-white/20 hover:bg-white/30'
+                  }`}
+                >
+                  <div className="text-xs opacity-75">{d.label.split(' ')[0]}</div>
+                  <div className="font-bold">
+                    {d.label.includes('Today') ? 'Today' : d.label.includes('Tomorrow') ? 'Tomorrow' : d.label.split(' ').slice(1).join(' ')}
+                  </div>
+                  {!dateHasShows && <div className="text-xs mt-1">No shows</div>}
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -431,7 +690,7 @@ console.log("Booking Data:", {
         </div>
 
         {/* Showtimes */}
-        <div className="space-y-8 mb-12">
+        <div ref={showsSectionRef} className="space-y-8 mb-12">
           {cinemas.length === 0 ? (
             <div className="text-center py-20 text-xl opacity-70">No shows available for selected filters</div>
           ) : (
@@ -475,6 +734,59 @@ console.log("Booking Data:", {
               );
             })
           )}
+        </div>
+
+        {/* All Available Shows by Date */}
+        <div className="mb-12">
+          <h2 className="text-3xl font-bold mb-8 text-center">All Available Shows</h2>
+          <div className="grid gap-6">
+            {Object.entries(allShowsByDate).length === 0 ? (
+              <div className="text-center py-10 text-xl opacity-70">No shows available</div>
+            ) : (
+              Object.entries(allShowsByDate)
+                .sort((a, b) => a[0].localeCompare(b[0]))
+                .map(([dateStr, { label, shows: dateShows }]) => (
+                  <div key={dateStr} className="bg-white/10 backdrop-blur-md rounded-2xl p-6 shadow-xl">
+                    <h3 className="text-xl font-bold mb-4 text-green-400">{label} ({dateStr})</h3>
+                    <div className="space-y-4">
+                      {dateShows.map(showItem => (
+                        <div key={showItem.showId} className="bg-white/5 rounded-lg p-4 border border-white/20">
+                          <div className="flex items-center justify-between gap-4 flex-wrap">
+                            <div className="flex-1 min-w-[200px]">
+                              <div className="text-lg font-bold mb-1">{showItem.theater}</div>
+                              <div className="text-sm opacity-75">
+                                <span className="bg-white/20 px-3 py-1 rounded-full mr-2">{showItem.language}</span>
+                                <span className="font-semibold">{showItem.time}</span>
+                              </div>
+                            </div>
+                            <div className={`${getAvailabilityColor(showItem.availableSeats)} text-white px-4 py-2 rounded-lg font-semibold`}>
+                              {getAvailabilityText(showItem.availableSeats)}<br/>{showItem.availableSeats} seats
+                            </div>
+                            <button
+                              onClick={() => {
+                                setSelectedDate(dates.find(d => d.date === dateStr));
+                                setSelectedShow({ 
+                                  showId: showItem.showId, 
+                                  cinema: showItem.cinema, 
+                                  time: showItem.time, 
+                                  language: showItem.language, 
+                                  fullShow: showItem.fullShow 
+                                });
+                                setSelectedSeats([]);
+                                setPaymentMethod(null);
+                              }}
+                              className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-semibold transition-all"
+                            >
+                              Book Now
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))
+            )}
+          </div>
         </div>
 
         {/* Seat Selection Section - Inline Below */}
