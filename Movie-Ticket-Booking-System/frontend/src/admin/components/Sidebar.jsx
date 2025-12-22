@@ -6,7 +6,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 const Sidebar = ({ isOpen, setIsOpen }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [expandedMenu, setExpandedMenu] = useState('theaters'); // Track single expanded key (default theaters)
+  const [expandedMenu, setExpandedMenu] = useState(null); // Track single expanded key (default null - all closed)
 
   const menuItems = [
     { path: 'dashboard', label: 'Dashboard', icon: 'fas fa-tachometer-alt' },

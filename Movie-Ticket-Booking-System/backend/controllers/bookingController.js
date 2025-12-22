@@ -133,7 +133,11 @@ export const getAllBookings = async (req, res) => {
 
     const bookings = await Booking.find(query)
       .populate("userId", "name email")
-      .populate("showId", "title theater screen startTime")
+      .populate({
+        path: "showId",
+        select: "movieId theater screen startTime endTime availableSeats totalSeatCount",
+        populate: { path: "movieId", select: "title genre" }
+      })
       .sort({ bookingDate: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
@@ -213,30 +217,53 @@ export const getTicketHistory = async (req, res) => {
 // ---------------------------
 export const getRevenueBreakdown = async (req, res) => {
   try {
-    const { dateFrom, dateTo, groupBy = "date" } = req.query; // groupBy: "date", "show", "theater"
-    const match = { 
-      status: "Confirmed", 
-      bookingDate: { 
-        $gte: new Date(dateFrom || "2024-01-01"), // Adjusted default to prior year for historical data
-        $lte: new Date(dateTo || new Date()) 
-      } 
+    const { dateFrom, dateTo, groupBy = "date" } = req.query; // groupBy: "date", "show", "theater", "movie"
+
+    // Normalize date range to include the full days and default to recent window if not provided
+    const now = new Date();
+    const fromDate = dateFrom ? new Date(dateFrom) : new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6);
+    const toDate = dateTo ? new Date(dateTo) : now;
+    const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const endOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+
+    const match = {
+      status: { $ne: "Cancelled" },
+      bookingDate: {
+        $gte: startOfDay(fromDate),
+        $lte: endOfDay(toDate)
+      }
     };
 
     const pipeline = [
       { $match: match },
-      { 
-        $lookup: { 
-          from: "shows", 
-          localField: "showId", 
-          foreignField: "_id", 
-          as: "show" 
-        } 
+      {
+        $lookup: {
+          from: "shows",
+          localField: "showId",
+          foreignField: "_id",
+          as: "show"
+        }
       },
       { $unwind: "$show" },
       {
+        $lookup: {
+          from: "movies",
+          localField: "show.movieId",
+          foreignField: "_id",
+          as: "movie"
+        }
+      },
+      { $unwind: { path: "$movie", preserveNullAndEmptyArrays: true } },
+      {
         $group: {
-          _id: groupBy === "date" ? { $dateToString: { format: "%Y-%m-%d", date: "$bookingDate" } } :
-                groupBy === "show" ? "$show.title" : "$show.theater",
+          _id:
+            groupBy === "date"
+              ? { $dateToString: { format: "%Y-%m-%d", date: "$bookingDate" } }
+              : groupBy === "show"
+              ? "$show.title"
+              : groupBy === "movie"
+              ? "$movie.title"
+              : "$show.theater",
           totalRevenue: { $sum: "$totalPrice" },
           ticketCount: { $sum: { $size: "$seatIds" } },
           avgPrice: { $avg: "$totalPrice" },

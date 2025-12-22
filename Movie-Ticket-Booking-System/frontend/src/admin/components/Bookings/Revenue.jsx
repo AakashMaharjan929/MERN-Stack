@@ -1,6 +1,7 @@
 // admin/components/Bookings/Revenue.jsx - Functional Revenue Breakdown page
 import React, { useState, useEffect } from 'react';
 import { getRevenueBreakdown } from '../../api/bookingsAPI'; // Adjust path to your bookingAPI
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const RevenueBreakdown = () => {
   const [revenueData, setRevenueData] = useState([]);
@@ -32,6 +33,29 @@ const RevenueBreakdown = () => {
 
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value }));
+  };
+
+  const formatCurrency = (v) => {
+    if (v === undefined || v === null) return '—';
+    return `₹ ${Number(v).toFixed(2)}`;
+  };
+
+  const CustomTooltip = ({ active, payload }) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-white p-3 border border-gray-300 rounded-md shadow-lg">
+          {payload.map((entry, index) => (
+            <div key={index} style={{ color: entry.color }} className="text-sm">
+              {entry.name === 'Total Revenue' 
+                ? `${entry.name}: ${formatCurrency(entry.value)}`
+                : `${entry.name}: ${entry.value}`
+              }
+            </div>
+          ))}
+        </div>
+      );
+    }
+    return null;
   };
 
   if (loading) {
@@ -112,13 +136,13 @@ const RevenueBreakdown = () => {
                     {item._id}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-right">
-                    ${item.totalRevenue.toFixed(2)}
+                    {formatCurrency(item.totalRevenue)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
                     {item.ticketCount}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                    ${item.avgPrice.toFixed(2)}
+                    {formatCurrency(item.avgPrice)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
                     {item.bookings.length}
@@ -127,6 +151,35 @@ const RevenueBreakdown = () => {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Chart */}
+      {revenueData.length > 0 && (
+        <div className="mt-10 bg-gray-50 p-6 rounded-lg">
+          <h4 className="text-lg font-semibold text-gray-900 mb-4">Revenue Chart</h4>
+          <div className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={revenueData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="_id" 
+                  angle={-45} 
+                  textAnchor="end" 
+                  height={100}
+                  tick={{ fontSize: 12 }}
+                />
+                <YAxis 
+                  label={{ value: 'Revenue (₹)', angle: -90, position: 'insideLeft' }}
+                  tick={{ fontSize: 12 }}
+                />
+                <Tooltip content={<CustomTooltip />} />
+                <Legend />
+                <Bar dataKey="totalRevenue" fill="#0EA5A4" name="Total Revenue" />
+                <Bar dataKey="ticketCount" fill="#84CC16" name="Ticket Count" yAxisId="right" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       )}
     </div>

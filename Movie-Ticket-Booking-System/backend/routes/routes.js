@@ -8,6 +8,7 @@ import bookingRoutes from "./bookingRoutes.js"; // Uncomment if booking routes a
 import authRoutes from "./auth.js"; // Import auth routes
 import paymentRoutes from "./paymentRoutes.js"; // Import payment routes
 import stripeRoutes from "./stripeRoutes.js"; // Import stripe routes
+import esewaRoutes from "./esewaRoutes.js"; // Import eSewa routes
 
 
 
@@ -23,6 +24,7 @@ router.use("/booking", bookingRoutes); // Uncomment if booking routes are needed
 router.use("/auth", authRoutes); // Added auth routes
 router.use("/payment", paymentRoutes); // Import payment routes
 router.use("/stripe", stripeRoutes); // Import stripe routes
+router.use("/esewa", esewaRoutes); // Added eSewa routes
 
 // You can add more routes later, e.g., /movie, /booking, /theater
 // router.use("/movie", movieRoutes);

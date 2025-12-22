@@ -2,8 +2,9 @@
 // Updated: Changed search navigation to home page with query params (?q=...&city=...) instead of /search
 // Added: Autocomplete dropdown for Trie suggestions (passed as props from HomePage)
 // Updated: Added user dropdown menu when logged in with My Tickets and Logout
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { getAllTheaters } from '../api/theaterAPI';
 
 const Navbar = ({ onSearch, suggestions = [] }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -11,11 +12,37 @@ const Navbar = ({ onSearch, suggestions = [] }) => {
   const [selectedCity, setSelectedCity] = useState('Kathmandu'); // Default to Kathmandu
   const [showCityModal, setShowCityModal] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [cities, setCities] = useState([]);
   const location = useLocation();
   const navigate = useNavigate();
 
   // Check if user is logged in
   const isLoggedIn = !!localStorage.getItem('token');
+
+  // Fetch cities from theaters API
+  useEffect(() => {
+    const fetchCities = async () => {
+      try {
+        const theaters = await getAllTheaters();
+        // Extract city names from location.city field (following NowShowing pattern)
+        const uniqueCities = ['All', ...new Set(
+          theaters
+            .map(t => t.location?.city)
+            .filter(Boolean)
+        )].sort();
+        setCities(uniqueCities);
+        // Set default city
+        if (uniqueCities.length > 0) {
+          setSelectedCity(uniqueCities[1] || 'Kathmandu'); // Skip 'All' and use first real city
+        }
+      } catch (err) {
+        console.error('Failed to fetch cities:', err);
+        // Fallback to default cities
+        setCities(['All', 'Kathmandu', 'Pokhara', 'Biratnagar', 'Lalitpur', 'Bharatpur']);
+      }
+    };
+    fetchCities();
+  }, []);
 
   const navItems = [
     { path: '/', label: 'Home' },
@@ -62,13 +89,7 @@ const Navbar = ({ onSearch, suggestions = [] }) => {
     navigate('/login');
   };
 
-  const cities = [
-    { value: 'Kathmandu', label: 'Kathmandu' },
-    { value: 'Pokhara', label: 'Pokhara' },
-    { value: 'Biratnagar', label: 'Biratnagar' },
-    { value: 'Lalitpur', label: 'Lalitpur' },
-    { value: 'Bharatpur', label: 'Bharatpur' },
-  ];
+
 
   const CitySelector = ({ selectedCity, setShowCityModal, isMobile = false }) => {
     return (
@@ -368,18 +389,18 @@ const Navbar = ({ onSearch, suggestions = [] }) => {
             <div className="space-y-3">
               {cities.map((city) => (
                 <button
-                  key={city.value}
+                  key={city}
                   onClick={() => {
-                    setSelectedCity(city.value);
+                    setSelectedCity(city);
                     setShowCityModal(false);
                   }}
                   className={`w-full text-left px-4 py-3 rounded-lg border border-[#0d6b20]/50 bg-[#0f5132]/30 hover:bg-[#0d6b20]/50 hover:text-[#d1f2eb] hover:border-[#d1f2eb]/50 transition-all duration-200 flex items-center shadow-md ${
-                    selectedCity === city.value ? 'bg-[#0d6b20]/70 border-[#d1f2eb]/50 ring-1 ring-[#d1f2eb]/30' : ''
+                    selectedCity === city ? 'bg-[#0d6b20]/70 border-[#d1f2eb]/50 ring-1 ring-[#d1f2eb]/30' : ''
                   }`}
                 >
                   <i className="fas fa-map-marker-alt mr-3 text-[#d1f2eb] text-sm"></i>
-                  <span className="flex-1 font-medium">{city.label}</span>
-                  {selectedCity === city.value && (
+                  <span className="flex-1 font-medium">{city}</span>
+                  {selectedCity === city && (
                     <i className="fas fa-check text-[#d1f2eb] text-sm ml-2"></i>
                   )}
                 </button>
