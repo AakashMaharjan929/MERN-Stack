@@ -10,15 +10,7 @@ const Banner = ({ movies = [] }) => {
   const touchStartX = useRef(0);
   const touchEndX = useRef(0);
 
-  // If no movies, show fallback
-  if (movies.length === 0) {
-    return (
-      <div className="relative w-full h-screen md:h-[85vh] bg-gray-900 flex items-center justify-center text-white">
-        <p className="text-3xl">No featured movies available</p>
-      </div>
-    );
-  }
-
+  const isEmpty = movies.length === 0;
   // Use only first 4 now-showing movies
   const featuredMovies = movies.slice(0, 4);
 
@@ -29,7 +21,7 @@ const Banner = ({ movies = [] }) => {
   }, []);
 
   useEffect(() => {
-    if (!isAutoPlay) return;
+    if (!isAutoPlay || featuredMovies.length === 0) return;
 
     intervalRef.current = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % featuredMovies.length);
@@ -38,9 +30,18 @@ const Banner = ({ movies = [] }) => {
     return () => clearInterval(intervalRef.current);
   }, [isAutoPlay, featuredMovies.length]);
 
-  const goPrev = () => setCurrentIndex((prev) => (prev - 1 + featuredMovies.length) % featuredMovies.length);
-  const goNext = () => setCurrentIndex((prev) => (prev + 1) % featuredMovies.length);
-  const goToSlide = (index) => setCurrentIndex(index);
+  const goPrev = () => {
+    if (featuredMovies.length === 0) return;
+    setCurrentIndex((prev) => (prev - 1 + featuredMovies.length) % featuredMovies.length);
+  };
+  const goNext = () => {
+    if (featuredMovies.length === 0) return;
+    setCurrentIndex((prev) => (prev + 1) % featuredMovies.length);
+  };
+  const goToSlide = (index) => {
+    if (featuredMovies.length === 0) return;
+    setCurrentIndex(index);
+  };
 
   const handleTouchStart = (e) => touchStartX.current = e.touches[0].clientX;
   const handleTouchMove = (e) => touchEndX.current = e.touches[0].clientX;
@@ -51,7 +52,15 @@ const Banner = ({ movies = [] }) => {
     touchStartX.current = touchEndX.current = 0;
   };
 
-  const current = featuredMovies[currentIndex];
+  if (isEmpty) {
+    return (
+      <div className="relative w-full h-screen md:h-[85vh] bg-gray-900 flex items-center justify-center text-white">
+        <p className="text-3xl">No featured movies available</p>
+      </div>
+    );
+  }
+
+  const current = featuredMovies[currentIndex % featuredMovies.length];
 
   // Build full image URL (same as in Card)
   const getImageUrl = (filename) => {

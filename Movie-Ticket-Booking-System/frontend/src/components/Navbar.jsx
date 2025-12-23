@@ -6,10 +6,10 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { getAllTheaters } from '../api/theaterAPI';
 
-const Navbar = ({ onSearch, suggestions = [] }) => {
+const Navbar = ({ onSearch, suggestions = [], selectedCity: controlledCity = 'All', onCityChange }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCity, setSelectedCity] = useState('Kathmandu'); // Default to Kathmandu
+  const [selectedCity, setSelectedCity] = useState(controlledCity || 'All');
   const [showCityModal, setShowCityModal] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [cities, setCities] = useState([]);
@@ -18,6 +18,11 @@ const Navbar = ({ onSearch, suggestions = [] }) => {
 
   // Check if user is logged in
   const isLoggedIn = !!localStorage.getItem('token');
+
+  // Sync local selected city with parent updates
+  useEffect(() => {
+    setSelectedCity(controlledCity || 'All');
+  }, [controlledCity]);
 
   // Fetch cities from theaters API
   useEffect(() => {
@@ -31,9 +36,10 @@ const Navbar = ({ onSearch, suggestions = [] }) => {
             .filter(Boolean)
         )].sort();
         setCities(uniqueCities);
-        // Set default city
-        if (uniqueCities.length > 0) {
-          setSelectedCity(uniqueCities[1] || 'Kathmandu'); // Skip 'All' and use first real city
+        if (!controlledCity && uniqueCities.length > 0) {
+          const defaultCity = uniqueCities[0];
+          setSelectedCity(defaultCity);
+          if (onCityChange) onCityChange(defaultCity);
         }
       } catch (err) {
         console.error('Failed to fetch cities:', err);
@@ -42,7 +48,7 @@ const Navbar = ({ onSearch, suggestions = [] }) => {
       }
     };
     fetchCities();
-  }, []);
+  }, [controlledCity, onCityChange]);
 
   const navItems = [
     { path: '/', label: 'Home' },
@@ -79,7 +85,7 @@ const Navbar = ({ onSearch, suggestions = [] }) => {
   const handleInputChange = (e) => {
     const value = e.target.value;
     setSearchQuery(value);
-    if (onSearch) onSearch(value); // Notify parent for Trie update
+    if (onSearch) onSearch(value, selectedCity); // Notify parent for Trie update + city
     setShowSuggestions(value.length > 0);
   };
 
@@ -225,7 +231,13 @@ const Navbar = ({ onSearch, suggestions = [] }) => {
                     <i className="fas fa-user mr-2"></i>
                     Account
                   </button>
-                  <div className="absolute top-full right-0 mt-1 bg-gradient-to-r from-[#0f5132] to-[#0d6b20] text-white rounded-lg shadow-lg py-1 z-10 min-w-[150px] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 border border-[#0d6b20]/50">
+                  <div className="absolute top-full right-0 mt-1 bg-gradient-to-r from-[#0f5132] to-[#0d6b20] text-white rounded-lg shadow-lg py-1 z-10 min-w-[170px] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 border border-[#0d6b20]/50">
+                    <Link
+                      to="/my-account"
+                      className="block px-4 py-2 text-sm hover:bg-[#0d6b20]/50 hover:text-[#d1f2eb] transition-colors"
+                    >
+                      My Account
+                    </Link>
                     <Link
                       to="/my-tickets"
                       className="block px-4 py-2 text-sm hover:bg-[#0d6b20]/50 hover:text-[#d1f2eb] transition-colors"
@@ -347,6 +359,14 @@ const Navbar = ({ onSearch, suggestions = [] }) => {
                   ) : (
                     <>
                       <Link
+                        to="/my-account"
+                        onClick={() => setIsMenuOpen(false)}
+                        className="block px-3 py-2 text-base font-medium text-white hover:bg-[#0d6b20]/50 hover:text-[#d1f2eb] transition-colors flex items-center"
+                      >
+                        <i className="fas fa-user-cog mr-2"></i>
+                        My Account
+                      </Link>
+                      <Link
                         to="/my-tickets"
                         onClick={() => setIsMenuOpen(false)}
                         className="block px-3 py-2 text-base font-medium text-white hover:bg-[#0d6b20]/50 hover:text-[#d1f2eb] transition-colors flex items-center"
@@ -391,8 +411,13 @@ const Navbar = ({ onSearch, suggestions = [] }) => {
                 <button
                   key={city}
                   onClick={() => {
-                    setSelectedCity(city);
+                    const nextCity = city || 'All';
+                    setSelectedCity(nextCity);
+                    if (onCityChange) onCityChange(nextCity);
                     setShowCityModal(false);
+                    if (location.pathname !== '/') {
+                      navigate(`/?city=${encodeURIComponent(nextCity)}`);
+                    }
                   }}
                   className={`w-full text-left px-4 py-3 rounded-lg border border-[#0d6b20]/50 bg-[#0f5132]/30 hover:bg-[#0d6b20]/50 hover:text-[#d1f2eb] hover:border-[#d1f2eb]/50 transition-all duration-200 flex items-center shadow-md ${
                     selectedCity === city ? 'bg-[#0d6b20]/70 border-[#d1f2eb]/50 ring-1 ring-[#d1f2eb]/30' : ''

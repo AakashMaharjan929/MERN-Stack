@@ -48,6 +48,7 @@ const HomePage = () => {
   const [user, setUser] = useState(null);
   const [activeTab, setActiveTab] = useState('now-showing');
   const [searchParams, setSearchParams] = useSearchParams();
+  const [selectedCity, setSelectedCity] = useState(searchParams.get('city') || 'All');
   const [autocompleteSuggestions, setAutocompleteSuggestions] = useState([]);
   const [shows, setShows] = useState([]);
   const [movies, setMovies] = useState([]);
@@ -56,7 +57,16 @@ const HomePage = () => {
 
   const navigate = useNavigate();
   const query = searchParams.get('q') || '';
+  const cityParam = searchParams.get('city');
   const isSearching = !!query;
+
+  // Keep local city in sync with URL changes (e.g., navbar navigate)
+  useEffect(() => {
+    const nextCity = cityParam || 'All';
+    if (nextCity !== selectedCity) {
+      setSelectedCity(nextCity);
+    }
+  }, [cityParam, selectedCity]);
 
    // Fetch all movies from backend
   useEffect(() => {
@@ -152,8 +162,35 @@ const HomePage = () => {
     navigate('/login');
   };
 
+  const handleSearchChange = (value, cityFromNavbar) => {
+    const nextCity = cityFromNavbar || selectedCity || 'All';
+    if (nextCity !== selectedCity) {
+      setSelectedCity(nextCity);
+    }
+
+    const params = {};
+    if (value) params.q = value;
+    if (nextCity) params.city = nextCity;
+    setSearchParams(params, { replace: true });
+  };
+
   const handleClearSearch = () => {
-    navigate('/', { replace: true });
+    if (selectedCity && selectedCity !== 'All') {
+      setSearchParams({ city: selectedCity }, { replace: true });
+    } else {
+      navigate('/', { replace: true });
+    }
+  };
+
+  const handleCityChange = (city) => {
+    const nextCity = city || 'All';
+    setSelectedCity(nextCity);
+
+    const params = {};
+    if (query) params.q = query;
+    if (nextCity) params.city = nextCity;
+
+    setSearchParams(params, { replace: false });
   };
 
   // DEBUG VERSION - Add this to see what's going wrong
@@ -205,20 +242,23 @@ useEffect(() => {
 
   console.log('=== END SUPER DEBUG ===');
 }, [movies, shows]);
+const normalizedSelectedCity = (selectedCity || 'All').toLowerCase();
+
 const nowShowingMovies = movies.filter(movie => {
   if (movie.status !== 'Now Showing') return false;
 
   const movieId = movie._id; // it's already a string
 
-  // Check if any show for this movie has status "Upcoming" or "Live"
   return shows.some(show => {
-    // Since movieId is populated as full object, get the _id from it
     const showMovieId = show.movieId?._id;
+    if (showMovieId !== movieId) return false;
 
-    return (
-      showMovieId === movieId &&
-      (show.status === 'Upcoming' || show.status === 'Live')
-    );
+    if (!(show.status === 'Upcoming' || show.status === 'Live')) return false;
+
+    if (normalizedSelectedCity === 'all') return true;
+
+    const showCity = show.screenId?.theaterId?.location?.city;
+    return showCity && showCity.toLowerCase() === normalizedSelectedCity;
   });
 });
 
@@ -273,8 +313,10 @@ const upcomingMovies = movies.filter(movie => movie.status === 'Upcoming');
   return (
     <div className="min-h-screen bg-[url('/bgsignup.png')] bg-cover bg-center bg-no-repeat">
       <Navbar
-        onSearch={(q) => setSearchParams({ q }, { replace: true })}
+        onSearch={handleSearchChange}
         suggestions={autocompleteSuggestions.map(transformMovieForCard)}
+        selectedCity={selectedCity}
+        onCityChange={handleCityChange}
       />
 
       {/* Banner only when not searching */}

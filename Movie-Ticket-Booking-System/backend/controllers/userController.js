@@ -101,8 +101,37 @@ export const getUserBookings = async (req, res) => {
     if (!user) return res.status(404).json({ message: "User not found" });
 
     const bookings = await user.getBookings();
-    res.status(200).json({ bookings });
+    
+    // Populate show details and transform for frontend
+    const populatedBookings = await Promise.all(
+      bookings.map(async (booking) => {
+        const populated = await booking.populate({
+          path: 'showId',
+          populate: [
+            { path: 'movieId', select: 'title genre language' },
+            { path: 'screenId', select: 'name' }
+          ]
+        });
+        
+        return {
+          _id: populated._id,
+          movieTitle: populated.showId?.movieId?.title || 'Unknown Movie',
+          movieName: populated.showId?.movieId?.title || 'Unknown Movie',
+          showTime: populated.showId?.startTime,
+          seats: populated.seatIds,
+          totalAmount: populated.totalPrice,
+          status: populated.status,
+          bookingDate: populated.bookingDate,
+          screenName: populated.showId?.screenId?.name,
+          genre: populated.showId?.movieId?.genre,
+          language: populated.showId?.movieId?.language
+        };
+      })
+    );
+    
+    res.status(200).json({ bookings: populatedBookings });
   } catch (err) {
+    console.error('Get user bookings error:', err);
     res.status(500).json({ message: err.message });
   }
 };

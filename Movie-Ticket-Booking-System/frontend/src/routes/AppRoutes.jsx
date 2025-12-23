@@ -41,6 +41,7 @@ import ContactPage from '../pages/ContactPage';
 import Schedule from '../pages/Schedule';
 
 import MyTickets from '../pages/MyTickets';
+import MyAccount from '../pages/MyAccount';
 import StripeSuccess from '../pages/StripeSuccess';
 import PaymentSuccess from '../pages/PaymentSuccess';
 
@@ -114,6 +115,7 @@ function AppRoutes() {
         <Route path="/schedule" element={<Schedule />} />
 
         <Route path="/my-tickets" element={<MyTickets />} />
+        <Route path="/my-account" element={<MyAccount />} />
 
         <Route path="/stripe-success" element={<StripeSuccess />} />
         <Route path="/payment-success" element={<PaymentSuccess />} />

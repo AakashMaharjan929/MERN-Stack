@@ -140,7 +140,13 @@ export const getAllShows = async (req, res) => {
 
     let shows = await Show.find(filter)
       .populate("movieId")
-      .populate("screenId")
+      .populate({
+        path: "screenId",
+        populate: {
+          path: "theaterId",
+          model: "Theater",
+        },
+      })
       .sort({ startTime: 1 });
 
     // ADD THESE CONSOLE LOGS TO SEE WHAT'S BEING SENT
@@ -184,7 +190,13 @@ export const getShowById = async (req, res) => {
 
     const show = await Show.findById(id)
       .populate("movieId")
-      .populate("screenId");
+      .populate({
+        path: "screenId",
+        populate: {
+          path: "theaterId",
+          model: "Theater",
+        },
+      });
     
     if (!show) {
       return res.status(404).json({ message: "Show not found" });

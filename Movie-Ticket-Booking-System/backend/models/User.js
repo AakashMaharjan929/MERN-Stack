@@ -1,7 +1,7 @@
 // Updated userModel.js - Added status field and admin methods
 import mongoose from "mongoose";
 import bcrypt from "bcrypt";
-// import Booking from "./Booking.js"; 
+import Booking from "./Booking.js";
 
 // Schema
 const userSchema = new mongoose.Schema({
