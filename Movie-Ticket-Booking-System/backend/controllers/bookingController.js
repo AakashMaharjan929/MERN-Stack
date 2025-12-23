@@ -200,7 +200,14 @@ export const getTicketHistory = async (req, res) => {
 
     const bookings = await Booking.find(query)
       .populate("userId", "name email")
-      .populate("showId", "title theater screen startTime seatLayout")
+      .populate({
+        path: "showId",
+        select: "startTime movieId",
+        populate: {
+          path: "movieId",
+          select: "title"
+        }
+      })
       .sort({ bookingDate: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);

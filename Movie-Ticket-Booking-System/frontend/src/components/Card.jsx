@@ -106,13 +106,6 @@ const Card = ({ movie }) => {
           </div>
         </div>
       </div>
-
-      {/* Advance Label */}
-      {movie.tag === 'Upcoming' && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-cyan-600 text-white px-4 py-2 text-sm font-bold rounded-full shadow-lg animate-pulse">
-          Advance Booking
-        </div>
-      )}
     </div>
   );
 };

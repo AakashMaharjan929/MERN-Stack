@@ -10,7 +10,10 @@ const MyAccount = () => {
   const [user, setUser] = useState(() => {
     try {
       const stored = localStorage.getItem('user');
-      return stored ? JSON.parse(stored) : null;
+      console.log('🔍 Raw localStorage user:', stored);
+      const parsed = stored ? JSON.parse(stored) : null;
+      console.log('👤 Parsed user object:', parsed);
+      return parsed;
     } catch {
       return null;
     }
@@ -37,6 +40,8 @@ const MyAccount = () => {
   // Prefill profile form
   useEffect(() => {
     if (user) {
+      console.log('📋 Setting profile from user:', user);
+      console.log('📞 Phone value:', user.phone);
       setProfile({
         name: user.name || '',
         email: user.email || '',

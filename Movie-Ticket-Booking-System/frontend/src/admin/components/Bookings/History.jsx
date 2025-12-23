@@ -1,7 +1,6 @@
 // admin/components/Bookings/History.jsx - Fixed TDZ error by moving helper function and importing API confirmBooking
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { getTicketHistory, confirmBooking as apiConfirmBooking } from '../../api/bookingsAPI'; // Adjust path; renamed to avoid conflict
+import React, { useState, useEffect, useMemo } from 'react';
+import { getTicketHistory } from '../../api/bookingsAPI'; // Adjust path
 
 const TicketHistory = () => {
   const [bookings, setBookings] = useState([]);
@@ -15,6 +14,7 @@ const TicketHistory = () => {
     limit: 10
   });
   const [pagination, setPagination] = useState({ total: 0, page: 1, limit: 10 });
+  const [search, setSearch] = useState('');
 
   const fetchBookings = async (page = 1) => {
     try {
@@ -43,18 +43,29 @@ const TicketHistory = () => {
     fetchBookings(newPage);
   };
 
-  // Helper function for confirming (now uses imported API and avoids recursion)
-  const handleConfirmBooking = async (id) => {
-    if (window.confirm('Confirm this booking?')) {
-      try {
-        await apiConfirmBooking(id);
-        // Refetch data
-        fetchBookings(pagination.page);
-      } catch (err) {
-        alert('Failed to confirm booking');
-      }
-    }
-  };
+  // Derived: filtered bookings by search term
+  const filteredBookings = useMemo(() => {
+    if (!search.trim()) return bookings;
+    const q = search.toLowerCase();
+    return bookings.filter(b => {
+      const id = (b._id || '').toString().toLowerCase();
+      const userName = (b.userId?.name || '').toLowerCase();
+      const userEmail = (b.userId?.email || '').toLowerCase();
+      const seats = (b.seatIds || []).join(', ').toLowerCase();
+      const showTime = b.showId?.startTime ? new Date(b.showId.startTime).toLocaleString().toLowerCase() : '';
+      const movieTitle = (b.showId?.movieId?.title || b.showId?.title || '').toLowerCase();
+      return (
+        id.includes(q) ||
+        userName.includes(q) ||
+        userEmail.includes(q) ||
+        seats.includes(q) ||
+        showTime.includes(q) ||
+        movieTitle.includes(q)
+      );
+    });
+  }, [bookings, search]);
+
+  // (Actions removed)
 
   if (loading) {
     return (
@@ -77,13 +88,20 @@ const TicketHistory = () => {
       <div className="flex justify-between items-center mb-6">
         <h3 className="text-xl font-semibold text-gray-900">Ticket History</h3>
         <div className="text-sm text-gray-500">
-          Showing {bookings.length} of {pagination.total} bookings
+          Showing {filteredBookings.length}{search ? ` filtered` : ''} of {pagination.total} bookings
         </div>
       </div>
 
       {/* Filters */}
       <div className="bg-gray-50 p-4 rounded-lg mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <input
+            type="text"
+            placeholder="Search by movie, user, booking, seats..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+          />
           <select
             value={filters.status}
             onChange={(e) => handleFilterChange('status', e.target.value)}
@@ -133,11 +151,10 @@ const TicketHistory = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {bookings.map((booking) => (
+                {filteredBookings.map((booking) => (
                   <tr key={booking._id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {booking._id.slice(-6)} {/* Shortened ID */}
@@ -147,9 +164,10 @@ const TicketHistory = () => {
                       <span className="text-gray-500">{booking.userId?.email}</span>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900">
-                      {booking.showId?.title}<br />
+                      {(booking.showId?.movieId?.title || booking.showId?.title || 'Unknown Movie')}
+                      <br />
                       <span className="text-gray-500">
-                        {booking.showId?.theater} - {booking.showId?.screen}
+                        {booking.showId?.startTime ? new Date(booking.showId.startTime).toLocaleString() : '—'}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900">
@@ -168,23 +186,7 @@ const TicketHistory = () => {
                       {new Date(booking.bookingDate).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      ${booking.totalPrice}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <Link
-                        to={`/admin/bookings/${booking._id}`} // Assuming detail route added to BookingsLayout
-                        className="text-green-600 hover:text-green-900 mr-2"
-                      >
-                        View
-                      </Link>
-                      {booking.status === 'Pending' && (
-                        <button
-                          onClick={() => handleConfirmBooking(booking._id)}
-                          className="text-blue-600 hover:text-blue-900"
-                        >
-                          Confirm
-                        </button>
-                      )}
+                      Rs.{booking.totalPrice}
                     </td>
                   </tr>
                 ))}

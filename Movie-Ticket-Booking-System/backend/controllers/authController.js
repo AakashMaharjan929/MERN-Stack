@@ -106,7 +106,10 @@ export const loginUser = async (req, res) => {
       id: user._id,
       name: user.name,
       email: user.email,
-      role: user.role || 'user'
+      phone: user.phone,
+      role: user.role || 'user',
+      createdAt: user.createdAt,
+      status: user.status
     };
 
     res.status(200).json({ 

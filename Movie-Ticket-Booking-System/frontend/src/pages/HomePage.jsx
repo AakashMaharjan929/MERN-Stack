@@ -150,10 +150,8 @@ const HomePage = () => {
       } catch {
         localStorage.removeItem('user');
       }
-    } else {
-      navigate('/login');
     }
-  }, [navigate]);
+  }, []);
 
   const handleLogout = () => {
     localStorage.clear();
@@ -204,14 +202,13 @@ useEffect(() => {
   const nowShowingMovie = movies.find(m => m.status === 'Now Showing');
   if (!nowShowingMovie) {
     console.log('No movie with "Now Showing" status found.');
-    return;
+  } else {
+    // Print movie _id in full detail
+    console.log('Movie title:', nowShowingMovie.title);
+    console.log('Movie _id raw:', nowShowingMovie._id);
+    console.log('Movie _id type:', typeof nowShowingMovie._id);
+    console.log('Movie _id (JSON stringified):', JSON.stringify(nowShowingMovie._id));
   }
-
-  // Print movie _id in full detail
-  console.log('Movie title:', nowShowingMovie.title);
-  console.log('Movie _id raw:', nowShowingMovie._id);
-  console.log('Movie _id type:', typeof nowShowingMovie._id);
-  console.log('Movie _id (JSON stringified):', JSON.stringify(nowShowingMovie._id));
 
   // Print ALL shows' movieId details
   shows.forEach((show, index) => {
@@ -291,8 +288,6 @@ const upcomingMovies = movies.filter(movie => movie.status === 'Upcoming');
     tag: movie.status === 'Now Showing' ? 'Now Showing' : 'Upcoming',
   });
 
-  if (!user) return <div className="flex justify-center items-center min-h-screen text-white">Redirecting...</div>;
-
   if (loading) {
     return (
       <div className="flex flex-col justify-center items-center min-h-screen text-white">
@@ -322,7 +317,7 @@ const upcomingMovies = movies.filter(movie => movie.status === 'Upcoming');
       {/* Banner only when not searching */}
 {!isSearching && (
   <div className="pt-16 w-full h-[calc(100vh-4rem)]">
-    <Banner movies={nowShowingMovies} />  {/* ← Pass real data */}
+    <Banner movies={[...nowShowingMovies, ...upcomingMovies]} />
   </div>
 )}
 

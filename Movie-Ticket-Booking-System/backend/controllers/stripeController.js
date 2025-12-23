@@ -20,7 +20,7 @@ export const createStripeCheckoutSession = async (req, res) => {
       showDate,
       showTime,
       seats,
-      // bookingId,
+      bookingId,
     } = req.body;
 
     if (!amount || !showId) {
@@ -30,12 +30,21 @@ export const createStripeCheckoutSession = async (req, res) => {
       });
     }
 
+    if (!process.env.STRIPE_SECRET_KEY) {
+      console.error('STRIPE_SECRET_KEY not configured');
+      return res.status(500).json({
+        success: false,
+        message: 'Payment gateway not configured',
+      });
+    }
+
     const userId = req.user?._id || null;
 
     const transactionUUID = `STRIPE-${Date.now()}`;
 
     const payment = await Payment.createPendingPayment({
       showId,
+      bookingId,
       userId,
       movieTitle,
       cinemaName,
@@ -79,10 +88,10 @@ export const createStripeCheckoutSession = async (req, res) => {
       paymentId: payment._id.toString(),
     });
   } catch (err) {
-    console.error('Stripe checkout error:', err);
+    console.error('Stripe checkout error:', err.message || err);
     return res.status(500).json({
       success: false,
-      message: 'Failed to create checkout session',
+      message: err.message || 'Failed to create checkout session',
     });
   }
 };

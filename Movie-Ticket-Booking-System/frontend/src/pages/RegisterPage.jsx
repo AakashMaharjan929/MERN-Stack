@@ -299,7 +299,9 @@ const Register = () => {
         {/* Left Section - Animated Background */}
         <div className="w-full md:w-1/2 h-full flex flex-col justify-between p-12 relative overflow-hidden">
           <div className="text-left z-10">
-            <img src="./images/logoGreen.png" alt="Cinemas Logo" className="h-11 mb-4" />
+            <Link to="/">
+              <img src="./images/logoGreen.png" alt="Cinemas Logo" className="h-11 mb-4 cursor-pointer hover:opacity-80 transition-opacity" />
+            </Link>
           </div>
           <div className="area w-full h-full absolute top-0 left-0" style={{ background: '#00A170', background: '-webkit-linear-gradient(to left, #B2F5EA, #00A170)' }}>
             <ul className="circles w-full h-full">

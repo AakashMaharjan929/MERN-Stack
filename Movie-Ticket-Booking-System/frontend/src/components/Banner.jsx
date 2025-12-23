@@ -11,7 +11,7 @@ const Banner = ({ movies = [] }) => {
   const touchEndX = useRef(0);
 
   const isEmpty = movies.length === 0;
-  // Use only first 4 now-showing movies
+  // Use first 4 movies provided (can include Now Showing and Upcoming)
   const featuredMovies = movies.slice(0, 4);
 
   // Auto-play (disabled on mobile)
@@ -69,6 +69,12 @@ const Banner = ({ movies = [] }) => {
   };
 
   const bannerImage = getImageUrl(current.bannerPoster || current.profilePoster);
+  const isUpcoming = (current.status === 'Upcoming');
+  const statusLabel = isUpcoming ? 'Upcoming' : 'Now Showing';
+  const ctaHref = isUpcoming
+    ? `/movies/coming-soon?movieId=${current._id}`
+    : `/movies/now-showing?movieId=${current._id}`;
+  const ctaText = isUpcoming ? 'See Details' : 'Book Tickets';
 
   return (
     <div
@@ -116,21 +122,21 @@ const Banner = ({ movies = [] }) => {
             </h1>
 
             <p className="text-lg md:text-xl text-gray-200 mb-8">
-              In Cinemas Now • Book your tickets today!
+              {isUpcoming ? 'Coming Soon' : 'In Cinemas Now • Book your tickets today!'}
             </p>
 
             {/* BOOK TICKETS BUTTON */}
             <Link
-              to={`/movies/now-showing?movieId=${current._id}`}
+              to={ctaHref}
               className="inline-flex items-center gap-3 bg-green-600 hover:bg-green-500 active:bg-green-700 text-white font-bold text-lg md:text-xl px-10 py-5 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-xl hover:shadow-green-500/50"
             >
-              Book Tickets
+              {ctaText}
               <ChevronRight className="w-6 h-6" />
             </Link>
           </div>
 
           <div className="hidden md:block text-right">
-            <p className="text-3xl font-bold text-white opacity-90">Now Showing</p>
+            <p className="text-3xl font-bold text-white opacity-90">{statusLabel}</p>
           </div>
         </div>
       </div>

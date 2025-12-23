@@ -13,6 +13,23 @@ const LoginPage = () => {
 
   const fullText = "Welcome back. Log in to continue your cinematic adventure!";
 
+  // Redirect if already logged in
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const user = localStorage.getItem('user');
+    if (token && user) {
+      try {
+        const userData = JSON.parse(user);
+        const redirectPath = userData.role === 'admin' ? '/admin/dashboard' : '/';
+        navigate(redirectPath, { replace: true });
+      } catch {
+        // If parsing fails, clear invalid data
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      }
+    }
+  }, [navigate]);
+
   useEffect(() => {
     // Fade-in on load
     const fadeTimer = setTimeout(() => {
@@ -48,25 +65,16 @@ const LoginPage = () => {
 
     if (!userData.email || !userData.password) {
       setError('Email and password are required');
-      const form = document.querySelector('form');
-      if (form) form.classList.add('animate-shake');
-      setTimeout(() => form?.classList.remove('animate-shake'), 500);
       return;
     }
 
     if (!/^\S+@\S+\.\S+$/.test(userData.email)) {
       setError('Please enter a valid email');
-      const form = document.querySelector('form');
-      if (form) form.classList.add('animate-shake');
-      setTimeout(() => form?.classList.remove('animate-shake'), 500);
       return;
     }
 
     if (userData.password.length < 6) {
       setError('Password must be at least 6 characters');
-      const form = document.querySelector('form');
-      if (form) form.classList.add('animate-shake');
-      setTimeout(() => form?.classList.remove('animate-shake'), 500);
       return;
     }
 
@@ -101,9 +109,6 @@ const LoginPage = () => {
       }
     } catch (err) {
       setError(err.response?.data?.message || "Login failed. Please try again.");
-      const form = document.querySelector("form");
-      if (form) form.classList.add("animate-shake");
-      setTimeout(() => form?.classList.remove("animate-shake"), 500);
     } finally {
       setIsLoading(false);
     }
@@ -113,9 +118,6 @@ const LoginPage = () => {
     const emailValue = e.target.value;
     if (emailValue && !/^\S+@\S+\.\S+$/.test(emailValue)) {
       setInputError((prev) => ({ ...prev, email: true }));
-      const input = e.target;
-      input.classList.add('border-red-500', 'animate-shake-small');
-      setTimeout(() => input.classList.remove('border-red-500', 'animate-shake-small'), 500);
     } else {
       setInputError((prev) => ({ ...prev, email: false }));
     }
@@ -125,9 +127,6 @@ const LoginPage = () => {
     const passwordValue = e.target.value;
     if (passwordValue.length < 6) {
       setInputError((prev) => ({ ...prev, password: true }));
-      const input = e.target;
-      input.classList.add('border-red-500', 'animate-shake-small');
-      setTimeout(() => input.classList.remove('border-red-500', 'animate-shake-small'), 500);
     } else {
       setInputError((prev) => ({ ...prev, password: false }));
     }
@@ -136,6 +135,21 @@ const LoginPage = () => {
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
   };
+
+  // Don't render if user is already logged in
+  const token = localStorage.getItem('token');
+  const user = localStorage.getItem('user');
+  if (token && user) {
+    return (
+      <div className="min-h-screen w-screen overflow-hidden relative flex items-center justify-center bg-[url('/bgsignup.png')] bg-cover bg-center bg-no-repeat">
+        <ToastContainer position="top-right" autoClose={3000} />
+        <div className="flex flex-col items-center gap-4 text-white">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-green-500 border-solid"></div>
+          <div className="text-lg">Redirecting…</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen w-screen overflow-hidden relative">
@@ -159,8 +173,18 @@ const LoginPage = () => {
       </div>
 
       {/* Logo Overlay */}
-      <div className="absolute top-12 left-12 z-10">
-        <img src="./images/logoGreen.png" alt="Cinemas Logo" className="h-11 mb-4" />
+      <div className="absolute top-12 left-12 z-50 pointer-events-auto">
+        <button
+          type="button"
+          aria-label="Go to Home"
+          onClick={() => {
+            console.log('Logo clicked → navigating to /');
+            navigate('/');
+          }}
+          className="focus:outline-none"
+        >
+          <img src="/images/logoGreen.png" alt="Cinemas Logo" className="h-11 mb-4 cursor-pointer hover:opacity-80 transition-opacity" />
+        </button>
       </div>
 
       {/* Typed Text Overlay */}
@@ -196,7 +220,7 @@ const LoginPage = () => {
                   name="email"
                   id="email"
                   placeholder="your.email@example.com"
-                  className={`pl-10 pr-2 w-full h-10 border rounded-md focus:ring focus:ring-green-500 focus:outline-none ${inputError.email ? 'border-red-500' : 'border-gray-300'}`}
+                  className={"pl-10 pr-2 w-full h-10 border rounded-md focus:ring focus:ring-green-500 focus:outline-none border-gray-300"}
                   onChange={handleEmailChange}
                   disabled={isLoading}
                 />
@@ -213,7 +237,7 @@ const LoginPage = () => {
                   name="password"
                   id="password"
                   placeholder="Enter your password"
-                  className={`pl-10 pr-10 w-full h-10 border rounded-md focus:ring focus:ring-green-500 focus:outline-none ${inputError.password ? 'border-red-500' : 'border-gray-300'}`}
+                  className={"pl-10 pr-10 w-full h-10 border rounded-md focus:ring focus:ring-green-500 focus:outline-none border-gray-300"}
                   onChange={handlePasswordChange}
                   disabled={isLoading}
                 />

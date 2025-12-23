@@ -130,6 +130,24 @@ const Upcoming = () => {
   const posterUrl = getImageUrl(movie?.profilePoster);
   const bannerUrl = getImageUrl(movie?.bannerPoster || movie?.profilePoster);
 
+  // YouTube embed helper
+  const getTrailerEmbedUrl = (url) => {
+    if (!url) return '';
+    let videoId = '';
+    if (url.includes('youtu.be')) videoId = url.split('youtu.be/')[1]?.split('?')[0] || '';
+    else if (url.includes('watch?v=')) videoId = url.split('v=')[1]?.split('&')[0] || '';
+    else if (url.includes('embed/')) videoId = url.split('embed/')[1]?.split('?')[0] || '';
+    return videoId ? `https://www.youtube.com/embed/${videoId}` : '';
+  };
+
+  // Date formatter
+  const formatReleaseDate = (d) => {
+    if (!d) return null;
+    const dt = new Date(d);
+    if (isNaN(dt.getTime())) return null;
+    return dt.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-black via-gray-900 to-black text-white">
       {/* Navbar */}
@@ -162,6 +180,11 @@ const Upcoming = () => {
               <div className="text-center mt-6">
                 <p className="text-blue-400 font-semibold text-lg">Coming Soon</p>
                 <p className="text-sm opacity-75 mt-2">Tickets will be available on release date</p>
+                {movie?.releaseDate && (
+                  <p className="text-sm text-gray-400 mt-1">
+                    Release: {new Date(movie.releaseDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -173,6 +196,22 @@ const Upcoming = () => {
                 {movie.description || movie.synopsis || 'No synopsis available.'}
               </p>
             </div>
+
+            {/* Trailer */}
+            {movie.trailerUrl && getTrailerEmbedUrl(movie.trailerUrl) && (
+              <div className="bg-white/10 backdrop-blur-lg rounded-3xl p-8 border border-white/20">
+                <h3 className="text-2xl font-bold mb-4 text-blue-400">Official Trailer</h3>
+                <div className="aspect-video bg-black rounded-lg overflow-hidden shadow-2xl">
+                  <iframe
+                    src={getTrailerEmbedUrl(movie.trailerUrl)}
+                    title={`Trailer - ${movie.title}`}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    className="w-full h-full"
+                  ></iframe>
+                </div>
+              </div>
+            )}
 
             {/* Director & Cast */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -266,6 +305,10 @@ const Upcoming = () => {
           <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
             <h3 className="text-xl font-bold mb-4 text-blue-400">Movie Details</h3>
             <ul className="space-y-2 text-sm">
+              <li className="flex justify-between">
+                <span className="opacity-75">Release Date:</span>
+                <span className="font-semibold">{formatReleaseDate(movie.releaseDate) || 'TBA'}</span>
+              </li>
               <li className="flex justify-between">
                 <span className="opacity-75">Runtime:</span>
                 <span className="font-semibold">{movie.duration || 'N/A'} min</span>
