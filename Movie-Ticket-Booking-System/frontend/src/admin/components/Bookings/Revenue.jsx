@@ -37,7 +37,7 @@ const RevenueBreakdown = () => {
 
   const formatCurrency = (v) => {
     if (v === undefined || v === null) return '—';
-    return `₹ ${Number(v).toFixed(2)}`;
+    return `NPR ${Number(v).toFixed(2)}`;
   };
 
   const CustomTooltip = ({ active, payload }) => {

@@ -883,10 +883,8 @@ console.log("Booking Data:", {
                               onClick={() => {
                                 if (isSelected) {
                                   setSelectedSeats(prev => prev.filter(s => s !== seatDef.seatNumber));
-                                } else if (selectedSeats.length < 8) {
-                                  setSelectedSeats(prev => [...prev, seatDef.seatNumber]);
                                 } else {
-                                  toast.warn("Maximum 8 seats allowed");
+                                  setSelectedSeats(prev => [...prev, seatDef.seatNumber]);
                                 }
                               }}
                               className={`

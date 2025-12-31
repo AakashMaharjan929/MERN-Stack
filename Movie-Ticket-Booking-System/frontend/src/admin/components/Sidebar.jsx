@@ -151,7 +151,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                     </div>
                     {isOpen && (
                       <i 
-                        className={`fas fa-chevron-down text-base transition-transform duration-200 flex-shrink-0 ${
+                        className={`fas fa-chevron-up text-base transition-transform duration-200 flex-shrink-0 ${
                           expanded ? 'rotate-0' : 'rotate-180'
                         } ${active || isParentActive ? 'text-white' : 'text-[#6B7280]'}`}
                       ></i>

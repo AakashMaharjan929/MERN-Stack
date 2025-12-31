@@ -153,34 +153,14 @@ useEffect(() => {
 
   fetchTickets();
 }, [navigate]);
-  // Determine if a ticket is upcoming (based on showDateTime format like "24 DEC | 24 DEC 7:14 PM")
+  // Determine if a ticket is upcoming using real show start time and status
   const isUpcoming = (ticket) => {
-    if (!ticket.showDateTime) return true;
+    if (ticket.showStatus === 'Completed') return false;
+    if (ticket.showStatus === 'Live') return true;
 
-    const datePart = ticket.showDateTime.split(' | ')[0].trim();
-    if (!datePart) return true;
-
-    const [dayStr, monthAbbr] = datePart.split(' ');
-    if (!dayStr || !monthAbbr) return true;
-
-    const monthMap = {
-      JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5,
-      JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11,
-      MANG: 1, // Nepali months if used
-      // Add more if needed
-    };
-
-    const month = monthMap[monthAbbr.toUpperCase()];
-    if (month === undefined) return true;
-
-    const day = parseInt(dayStr, 10);
-    const currentYear = new Date().getFullYear();
-    const showDate = new Date(currentYear, month, day);
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    return showDate >= today;
+    const start = ticket.showStartTimeISO ? new Date(ticket.showStartTimeISO) : null;
+    if (!start || isNaN(start.getTime())) return true;
+    return start >= new Date();
   };
 
   const upcomingTickets = tickets.filter(isUpcoming);
