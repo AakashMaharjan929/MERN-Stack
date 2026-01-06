@@ -1,0 +1,17 @@
+import express from "express";
+import { registerUser, loginUser, updateUserProfile, changeUserPassword, deleteUser, getUserBookings, cancelUserBooking, getAllUsers, getUserById, updateUserRole, blacklistUser, bulkDeleteUsers, bulkUpdateRoles, } from "../controllers/userController.js";
+const router = express.Router();
+router.post("/register", registerUser);
+router.post("/login", loginUser);
+router.put("/update/:id", updateUserProfile);
+router.put("/update/:id/password", changeUserPassword);
+router.delete("/delete/:id", deleteUser);
+router.get("/bookings/:id", getUserBookings);
+router.post("/:id/bookings/cancel", cancelUserBooking);
+router.get("/", getAllUsers);
+router.get("/:id", getUserById);
+router.put("/:id/role", updateUserRole);
+router.put("/:id/blacklist", blacklistUser);
+router.delete("/bulk", bulkDeleteUsers);
+router.put("/bulk/roles", bulkUpdateRoles);
+export default router;

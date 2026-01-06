@@ -1,0 +1,11 @@
+import express from "express";
+import { addTheater, updateTheater, deleteTheater, getAllTheaters, getTheaterById, addScreenToTheater, removeScreenFromTheater, } from "../controllers/theaterController.js";
+const router = express.Router();
+router.post("/", addTheater);
+router.put("/:id", updateTheater);
+router.delete("/:id", deleteTheater);
+router.get("/", getAllTheaters);
+router.get("/:id", getTheaterById);
+router.post("/add-screen", addScreenToTheater);
+router.post("/remove-screen", removeScreenFromTheater);
+export default router;

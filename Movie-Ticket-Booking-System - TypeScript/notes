@@ -1,0 +1,27 @@
+Icon Suggestion,Menu Item,Description/Sub-Menu Items,Why Include?
+📊,Dashboard,"- Overview stats (e.g., today's bookings, revenue)
+- Quick actions (e.g., add movie)",Entry point; provides KPIs like active shows or user trends.
+🎭,Theaters,"- Add/Edit Theater
+- List/View Theaters
+- Map Integration",Core entity; parent for Screens.
+🖥️,Screens,"- Add/Edit Screen
+- Seat Layout Editor
+- Capacity Management",Links to Theaters; handles physical setup.
+🎬,Movies,"- Add/Edit Movie
+- Catalog Management
+- Trailers/Posters Upload",Content hub; independent but links to Shows.
+⏰,Shows,"- Schedule Show
+- Bulk Scheduling
+- Conflict Checker",Operational; ties Movies to Screens/Theaters.
+👥,Users,"- Customer Management
+- Admin Roles
+- Blacklist",User-facing; for moderation and RBAC.
+🎫,Bookings,"- View Cancellations/Refunds
+- Ticket History
+- Revenue Breakdown","High-traffic; tracks transactions (your ""?"" candidate)."
+📈,Reports,"- Analytics Dashboard
+- Export Data (CSV/PDF)
+- Custom Queries",Insights; essential for business decisions.
+⚙️,Settings,"- System Config
+- Promotions/Coupons
+- Notifications",Backend; for global tweaks.

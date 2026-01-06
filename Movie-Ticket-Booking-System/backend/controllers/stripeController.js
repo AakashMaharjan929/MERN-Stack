@@ -2,6 +2,7 @@
 import Stripe from 'stripe';
 import Payment from '../models/Payment.js';
 import Booking from '../models/Booking.js';
+import Show from '../models/Show.js';
 import {lockSeats} from './showController.js';
 
 
@@ -40,18 +41,50 @@ export const createStripeCheckoutSession = async (req, res) => {
 
     const userId = req.user?._id || null;
 
+    // Ensure we have a bookingId; if not, create a pending booking after validating seats
+    let resolvedBookingId = bookingId;
+    let resolvedAmount = amount;
+
+    if (!resolvedBookingId) {
+      if (!showId || !Array.isArray(seats) || seats.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'bookingId or (showId + seats[]) is required',
+        });
+      }
+
+      const show = await Show.findById(showId);
+      if (!show) {
+        return res.status(404).json({ success: false, message: 'Show not found' });
+      }
+
+      const unavailable = seats.filter((id) => !show.isSeatAvailable(id));
+      if (unavailable.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: `Seats not available: ${unavailable.join(', ')}`,
+        });
+      }
+
+      const booking = new Booking({ userId, showId, seatIds: seats, status: 'Pending' });
+      await booking.calculateTotalPrice();
+      await booking.save();
+      resolvedBookingId = booking._id;
+      resolvedAmount = booking.totalPrice;
+    }
+
     const transactionUUID = `STRIPE-${Date.now()}`;
 
     const payment = await Payment.createPendingPayment({
       showId,
-      bookingId,
+      bookingId: resolvedBookingId,
       userId,
       movieTitle,
       cinemaName,
       showDate: new Date(showDate),
       showTime,
       seats,
-      amount,
+      amount: resolvedAmount,
       paymentMethod: 'stripe',
       transactionUUID,
       pid: `STR-${showId.slice(-8).toUpperCase()}`,
@@ -67,7 +100,7 @@ export const createStripeCheckoutSession = async (req, res) => {
               name: `Ticket: ${movieTitle}`,
               description: `${cinemaName} • ${showDate} • ${showTime} • Seats: ${seats.join(', ')}`,
             },
-            unit_amount: Math.round(amount * 100), // paisa
+            unit_amount: Math.round(resolvedAmount * 100), // paisa
           },
           quantity: 1,
         },
@@ -141,6 +174,8 @@ export const confirmStripeCheckout = async (req, res) => {
 
   
     await lockSeats(payment.showId, payment.seats);
+
+    
 
 
     // ✅ SINGLE RESPONSE

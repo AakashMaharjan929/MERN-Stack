@@ -1,0 +1,11 @@
+import express from "express";
+import { createPayment, paymentSuccess, paymentFailed, getMyTickets, cancelTicket, getAllPayments, } from "../controllers/paymentController.js";
+import { protect, admin } from "../middleware/authMiddleware.js";
+const router = express.Router();
+router.post("/", protect, createPayment);
+router.get("/my", protect, getMyTickets);
+router.post("/:id/cancel", protect, cancelTicket);
+router.post("/success", paymentSuccess);
+router.post("/failed", paymentFailed);
+router.get("/", protect, admin, getAllPayments);
+export default router;

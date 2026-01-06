@@ -1,0 +1,18 @@
+import express from "express";
+import { addShow, updateShow, deleteShow, getAllShows, getShowById, getCurrentPrice, bookSeats, cancelSeats, getAvailableSeats, bulkCreateShows, checkConflicts, suggestFactors, optimizeShow, refreshShowStatuses, } from "../controllers/showController.js";
+const router = express.Router();
+router.get('/refresh-statuses', refreshShowStatuses);
+router.post("/", addShow);
+router.post("/bulk", bulkCreateShows);
+router.put("/:id", updateShow);
+router.delete("/:id", deleteShow);
+router.get("/", getAllShows);
+router.get("/suggest-factors", suggestFactors);
+router.get("/conflicts", checkConflicts);
+router.post("/:id/optimize", optimizeShow);
+router.get("/:id", getShowById);
+router.get("/:id/price", getCurrentPrice);
+router.get("/:id/seats", getAvailableSeats);
+router.post("/:id/book", bookSeats);
+router.post("/:id/cancel", cancelSeats);
+export default router;

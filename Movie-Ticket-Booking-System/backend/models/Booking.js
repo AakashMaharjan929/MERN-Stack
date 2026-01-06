@@ -48,7 +48,7 @@ class BookingClass {
 
     let total = 0;
     this.seatIds.forEach((seatId) => {
-      const seat = show.availableSeats.find((s) => s.seatNumber === seatId);
+      const seat = show.availableSeats.find((s) => s && s.seatNumber === seatId);
       if (!seat) throw new Error(`Seat ${seatId} not found`);
       total += show.calculatePrice(seat.seatType);
     });

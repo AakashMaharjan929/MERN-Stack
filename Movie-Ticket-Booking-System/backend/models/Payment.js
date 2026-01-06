@@ -2,6 +2,11 @@
 import mongoose from "mongoose";
 
 const paymentSchema = new mongoose.Schema({
+  bookingId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Booking",
+    required: true
+  },
   showId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Shows",
@@ -90,6 +95,7 @@ class PaymentClass {
 
   // Static: Create a new payment record (before redirecting to gateway)
   static async createPendingPayment({
+    bookingId,
     showId,
     userId,
     movieTitle,
@@ -103,6 +109,7 @@ class PaymentClass {
     pid,
   }) {
     const payment = new this({
+      bookingId,
       showId,
       userId,
       movieTitle,

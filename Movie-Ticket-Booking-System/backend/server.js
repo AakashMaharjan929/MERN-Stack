@@ -70,6 +70,16 @@ mongoose.connect(process.env.MONGODB_URI || "mongodb://localhost:27017/movietick
     // NEW: Schedule cron job for daily midnight (UTC; add { timezone: 'Asia/Kathmandu' } for Nepal)
     cron.schedule('0 0 * * *', runPostShowOptimizations); // Reuse the function
 
+    // NEW: Update show statuses every minute to keep Upcoming/Live/Completed fresh
+    cron.schedule('* * * * *', async () => {
+      try {
+        await Show.updateAllShowStatuses();
+        console.log('[Cron] Show statuses refreshed');
+      } catch (err) {
+        console.error('[Cron] Failed to refresh statuses:', err.message);
+      }
+    });
+
     console.log('Cron job scheduler started.');  // Confirm cron is active
   })
   .catch(err => {

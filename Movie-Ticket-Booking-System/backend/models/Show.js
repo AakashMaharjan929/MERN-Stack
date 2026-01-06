@@ -283,17 +283,25 @@ async bookSeats(seatIds) {
     throw new Error(`Seats not available: ${notAvailable.join(", ")}`);
   }
 
+  // Mixed array needs explicit mark for persistence
+  this.markModified('availableSeats');
+
   // ... rest of pricingHistory logging and save
 }
 
   async cancelBooking(seatIds) {
     this.availableSeats.forEach(seat => {
-      if (seatIds.includes(seat.seatNumber)) {
-        if (seat) {  // UPDATED: Skip null aisles
-          seat.isBooked = false;
-        }
+      // Skip null aisles
+      const seatNumber = seat?.seatNumber;
+      if (!seatNumber) return;
+
+      if (seatIds.includes(seatNumber)) {
+        seat.isBooked = false;
       }
     });
+
+    // Mixed array needs explicit mark for persistence
+    this.markModified('availableSeats');
 
     await this.save();
     return { success: true, cancelled: seatIds };

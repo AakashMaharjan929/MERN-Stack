@@ -1,6 +1,7 @@
 // controllers/paymentController.js
 import Payment from "../models/Payment.js";
 import Booking from "../models/Booking.js";
+import Show from "../models/Show.js";
 import { v4 as uuidv4 } from "uuid";
 
 // Helper for gateway redirect URL
@@ -30,8 +31,31 @@ export const createPayment = async (req, res) => {
       paymentMethod,
     } = req.body;
 
-    if (!bookingId || !amount || !paymentMethod) {
+    if (!amount || !paymentMethod) {
       return res.status(400).json({ success: false, message: "Missing required fields" });
+    }
+
+    // If bookingId is not provided (older frontend flow), create a pending booking here
+    let resolvedBookingId = bookingId;
+    if (!resolvedBookingId) {
+      if (!showId || !Array.isArray(seats) || seats.length === 0) {
+        return res.status(400).json({ success: false, message: "bookingId or (showId + seats[]) is required" });
+      }
+
+      // Validate show and seat availability
+      const show = await Show.findById(showId);
+      if (!show) return res.status(404).json({ success: false, message: "Show not found" });
+
+      const unavailable = seats.filter((id) => !show.isSeatAvailable(id));
+      if (unavailable.length > 0) {
+        return res.status(400).json({ success: false, message: `Seats not available: ${unavailable.join(", ")}` });
+      }
+
+      // Create a pending booking (price will be confirmed on payment success)
+      const booking = new Booking({ userId, showId, seatIds: seats, status: "Pending" });
+      await booking.calculateTotalPrice();
+      await booking.save();
+      resolvedBookingId = booking._id;
     }
 
     const userId = req.user?._id || null;
@@ -39,6 +63,7 @@ export const createPayment = async (req, res) => {
     const pid = `TKT-${bookingId.toString().slice(-8).toUpperCase()}`;
 
     const payment = await Payment.createPendingPayment({
+      bookingId: resolvedBookingId,
       showId,
       userId,
       movieTitle,
@@ -81,7 +106,16 @@ export const paymentSuccess = async (req, res) => {
       gatewayStatus: "succeeded",
     });
 
-    await Booking.findByIdAndUpdate(payment.bookingId, { status: "confirmed" });
+    if (!payment.bookingId) {
+      return res.status(400).json({ success: false, message: "Missing booking reference on payment" });
+    }
+
+    const booking = await Booking.findById(payment.bookingId);
+    if (booking) {
+      await booking.confirmBooking();
+    } else {
+      console.error(`paymentSuccess: booking ${payment.bookingId} not found for payment ${payment._id}`);
+    }
 
     res.json({
       success: true,
@@ -124,20 +158,31 @@ export const getMyTickets = async (req, res) => {
       status: "completed",
     });
 
+    // Preload shows to derive real status and start time
+    const showIds = payments.map((p) => p.showId).filter(Boolean);
+    const shows = await Show.find({ _id: { $in: showIds } }).select("startTime status");
+    const showMap = new Map(shows.map((s) => [s._id.toString(), s]));
+
     const tickets = payments.map((p) => {
       const bookingTime = new Date(p.createdAt);
+      const show = showMap.get(p.showId?.toString());
+      const showStart = show?.startTime ? new Date(show.startTime) : bookingTime;
+      const showStatus = show?.status || "Upcoming";
+
       const now = new Date();
       const minutesSinceBooking = (now - bookingTime) / (1000 * 60);
-      const canRefund = minutesSinceBooking <= 30; // 30-minute cancellation window
+      const canRefund = minutesSinceBooking <= 30; // 30-minute cancellation window (business rule)
 
       return {
         id: p._id,
         movieTitle: p.movieTitle,
-        showDateTime: `${bookingTime.toLocaleDateString("en-NP", {
+        showDateTime: `${showStart.toLocaleDateString("en-NP", {
           day: "numeric",
           month: "short",
           year: "numeric",
         })} | ${p.showTime}`,
+        showStartTimeISO: showStart.toISOString(),
+        showStatus,
         auditorium: p.cinemaName,
         screen: "Screen 1",
         seat: p.seats.join(", "),
@@ -187,8 +232,19 @@ export const cancelTicket = async (req, res) => {
       return res.status(400).json({ message: "Cancellation window closed (30 minutes)" });
     }
 
+    if (!payment.bookingId) {
+      return res.status(400).json({ message: "Missing booking reference for this ticket" });
+    }
+
+    const booking = await Booking.findById(payment.bookingId);
+    if (!booking) {
+      return res.status(404).json({ message: "Booking not found for this ticket" });
+    }
+
+    await booking.cancelBooking(); // Frees seats and marks booking Cancelled
     await payment.markAsRefunded();
-    await Booking.findByIdAndUpdate(payment.bookingId, { status: "cancelled" });
+
+    console.log(`Ticket ${payment._id} cancelled by user ${req.user._id} and booking id ${payment.bookingId}`);
 
     // TODO: In future, integrate with eSewa/Khalti refund API
 
