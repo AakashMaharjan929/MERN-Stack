@@ -228,7 +228,7 @@ const Dashboard = () => {
 
   const formatCurrency = (v) => {
     if (v === undefined || v === null) return '—';
-    return `NPR ${Number(v).toFixed(2)}`;
+    return `रु. ${Number(v).toFixed(2)}`;
   };
 
   return (
@@ -251,7 +251,7 @@ const Dashboard = () => {
         </div>
         <div className="bg-white p-4 rounded shadow-sm">
           <div className="text-sm text-gray-500">Revenue Today</div>
-          <div className="text-2xl font-bold">{loading ? '—' : `NPR ${kpis.revenueToday.toFixed ? kpis.revenueToday.toFixed(2) : kpis.revenueToday}`}</div>
+          <div className="text-2xl font-bold">{loading ? '—' : `रु. ${kpis.revenueToday.toFixed ? kpis.revenueToday.toFixed(2) : kpis.revenueToday}`}</div>
         </div>
         <div className="bg-white p-4 rounded shadow-sm">
           <div className="text-sm text-gray-500">Active Shows</div>

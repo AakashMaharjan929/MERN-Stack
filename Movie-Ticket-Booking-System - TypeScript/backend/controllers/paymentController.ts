@@ -176,8 +176,8 @@ export const getMyTickets = async (req: Request, res: Response) => {
         screen: "Screen 1",
         seat: p.seats.join(", "),
         showType: "Standard Show",
-        price: `NPR ${p.amount.toFixed(2)}`,
-        grandTotal: `NPR ${p.amount.toFixed(2)}`,
+        price: `रु. ${p.amount.toFixed(2)}`,
+        grandTotal: `रु. ${p.amount.toFixed(2)}`,
         barcodeValue: p._id.toString().slice(-12).padStart(12, "0"),
         cinema: {
           name: p.cinemaName,

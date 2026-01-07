@@ -338,7 +338,7 @@ const upcomingMovies = movies.filter(movie => movie.status === 'Upcoming');
             </div>
 
             {searchResults.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-8">
                 {searchResults.map(movie => (
                   <Card key={movie._id} movie={transformMovieForCard(movie)} />
                 ))}
@@ -393,7 +393,7 @@ const upcomingMovies = movies.filter(movie => movie.status === 'Upcoming');
               )}
 
               {(activeTab === 'now-showing' ? nowShowingMovies : upcomingMovies).length > 0 && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-60">
                   {(activeTab === 'now-showing' ? nowShowingMovies : upcomingMovies).map(movie => (
                     <Card key={movie._id} movie={transformMovieForCard(movie)} />
                   ))}

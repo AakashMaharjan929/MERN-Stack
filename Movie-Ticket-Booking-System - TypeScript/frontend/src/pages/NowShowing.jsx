@@ -35,6 +35,9 @@ const NowShowing = () => {
   const seatSectionRef = useRef(null);
   const showsSectionRef = useRef(null);
 
+  // Treat upcoming and live shows as selectable on this page
+  const allowedStatuses = ['Upcoming', 'Live'];
+
   // Helper: Extract string ID
   const getIdString = (id) => {
     if (!id) return null;
@@ -44,9 +47,9 @@ const NowShowing = () => {
     return id.toString();
   };
 
-  // Generate 10 days
-  const getDates = () => {
-    const dates = [];
+  // Build date options from actual shows; fallback to next 10 days
+  const defaultDateRange = () => {
+    const out = [];
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const today = new Date();
@@ -54,20 +57,39 @@ const NowShowing = () => {
       const date = new Date(today);
       date.setDate(today.getDate() + i);
       const label = i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : `${days[date.getDay()]} ${date.getDate()} ${months[date.getMonth()]}`;
-      dates.push({
-        date: date.toISOString().split('T')[0],
-        label,
-        fullDate: date
-      });
+      out.push({ date: date.toISOString().split('T')[0], label, fullDate: date });
     }
-    return dates;
+    return out;
   };
 
-  const dates = getDates();
+  const dates = React.useMemo(() => {
+    const validShows = shows.filter(show => allowedStatuses.includes(show.status));
+    if (validShows.length === 0) return defaultDateRange();
+
+    const today = new Date();
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+    const uniqueDates = Array.from(new Set(validShows.map(show => new Date(show.startTime).toISOString().split('T')[0])));
+    uniqueDates.sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+
+    return uniqueDates.map((dateStr, idx) => {
+      const dateObj = new Date(dateStr);
+      const diffDays = Math.floor((dateObj.setHours(0, 0, 0, 0) - new Date(today).setHours(0, 0, 0, 0)) / (1000 * 60 * 60 * 24));
+      const label = diffDays === 0
+        ? 'Today'
+        : diffDays === 1
+          ? 'Tomorrow'
+          : `${days[dateObj.getDay()]} ${dateObj.getDate()} ${months[dateObj.getMonth()]}`;
+      return { date: dateStr, label, fullDate: new Date(dateStr) };
+    });
+  }, [shows]);
 
   useEffect(() => {
-    setSelectedDate(dates[0]); // Today
-  }, []);
+    if (!selectedDate || !dates.some(d => d.date === selectedDate.date)) {
+      setSelectedDate(dates[0]);
+    }
+  }, [dates, selectedDate]);
 
   // Auto-select first date with shows if current date has no shows
   useEffect(() => {
@@ -75,7 +97,7 @@ const NowShowing = () => {
 
     // Check if there are shows for the currently selected date
     const hasShowsForSelectedDate = shows.some(show => {
-      if (!['Upcoming'].includes(show.status)) return false;
+      if (!allowedStatuses.includes(show.status)) return false;
       const showDateStr = new Date(show.startTime).toISOString().split('T')[0];
       return showDateStr === selectedDate.date;
     });
@@ -84,7 +106,7 @@ const NowShowing = () => {
     if (!hasShowsForSelectedDate) {
       for (const date of dates) {
         const hasShows = shows.some(show => {
-          if (!['Upcoming'].includes(show.status)) return false;
+          if (!allowedStatuses.includes(show.status)) return false;
           const showDateStr = new Date(show.startTime).toISOString().split('T')[0];
           return showDateStr === date.date;
         });
@@ -161,7 +183,7 @@ const NowShowing = () => {
 
   // Filter shows
   const filteredShows = shows.filter(show => {
-    if (!['Upcoming'].includes(show.status)) return false;
+    if (!allowedStatuses.includes(show.status)) return false;
 
     const showDateStr = new Date(show.startTime).toISOString().split('T')[0];
     if (!selectedDate || showDateStr !== selectedDate.date) return false;
@@ -221,7 +243,7 @@ const NowShowing = () => {
   // Group all shows by date (for "All Available Shows" section)
   const allShowsByDate = {};
   shows.forEach(show => {
-    if (!['Upcoming'].includes(show.status)) return;
+    if (!allowedStatuses.includes(show.status)) return;
     
     const theater = theaters.find(t =>
       t.screens.some(screen => getIdString(screen) === getIdString(show.screenId))
@@ -267,7 +289,7 @@ const NowShowing = () => {
   // Check if a date has any shows
   const hasShowsOnDate = (dateStr) => {
     return shows.some(show => {
-      if (!['Upcoming'].includes(show.status)) return false;
+      if (!allowedStatuses.includes(show.status)) return false;
       const showDateStr = new Date(show.startTime).toISOString().split('T')[0];
       return showDateStr === dateStr;
     });
@@ -993,19 +1015,19 @@ console.log("Booking Data:", {
                     <div className="space-y-3 text-lg">
                       {standardSelected > 0 && (
                         <div className="flex justify-between">
-                          <span>Standard ({standardSelected} × NPR {standardPrice})</span>
-                          <span>NPR {standardSelected * standardPrice}</span>
+                          <span>Standard ({standardSelected} × रु. {standardPrice})</span>
+                          <span>रु. {standardSelected * standardPrice}</span>
                         </div>
                       )}
                       {premiumSelected > 0 && (
                         <div className="flex justify-between">
-                          <span>Premium ({premiumSelected} × NPR {premiumPrice})</span>
-                          <span>NPR {premiumSelected * premiumPrice}</span>
+                          <span>Premium ({premiumSelected} × रु. {premiumPrice})</span>
+                          <span>रु. {premiumSelected * premiumPrice}</span>
                         </div>
                       )}
                       <div className="flex justify-between font-bold text-2xl pt-4 border-t border-white/30">
                         <span>Total</span>
-                        <span>NPR {totalAmount}</span>
+                        <span>रु. {totalAmount}</span>
                       </div>
                     </div>
                   );
@@ -1062,7 +1084,7 @@ console.log("Booking Data:", {
                 disabled={selectedSeats.length === 0 || !paymentMethod}
                 className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed px-12 py-5 rounded-full font-bold text-xl shadow-lg disabled:shadow-none transition-all"
               >
-                Pay NPR {totalAmount} →
+                Pay रु. {totalAmount} →
               </button>
             </div>
           </div>

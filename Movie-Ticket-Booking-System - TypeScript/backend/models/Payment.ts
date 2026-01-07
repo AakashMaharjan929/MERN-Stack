@@ -22,7 +22,7 @@ const paymentSchema = new mongoose.Schema({
   showTime: { type: String, required: true },
   seats: [{ type: String, required: true }],
   amount: { type: Number, required: true, min: 0 },
-  currency: { type: String, default: "NPR", uppercase: true, trim: true },
+  currency: { type: String, default: "रु.", uppercase: true, trim: true },
   paymentMethod: {
     type: String,
     required: true,

@@ -285,7 +285,7 @@ const MyAccount = () => {
                     <p className="font-semibold text-gray-900">{booking.movieTitle || booking.movieName || 'Movie'}</p>
                     <p className="text-gray-600">Show Time: {booking.showTime ? new Date(booking.showTime).toLocaleString() : '—'}</p>
                     <p className="text-gray-600">Seats: {Array.isArray(booking.seats) ? booking.seats.join(', ') : (booking.seats || '—')}</p>
-                    <p className="text-gray-600">Amount: {booking.totalAmount ? `NPR ${booking.totalAmount}` : '—'}</p>
+                    <p className="text-gray-600">Amount: {booking.totalAmount ? `रु. ${booking.totalAmount}` : '—'}</p>
                     <p className="text-gray-600">Status: <span className={`font-semibold capitalize ${
                       booking.status === 'Confirmed' ? 'text-green-600' :
                       booking.status === 'Cancelled' ? 'text-red-600' :

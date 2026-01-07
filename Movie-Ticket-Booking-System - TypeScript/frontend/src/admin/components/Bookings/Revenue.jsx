@@ -37,7 +37,7 @@ const RevenueBreakdown = () => {
 
   const formatCurrency = (v) => {
     if (v === undefined || v === null) return '—';
-    return `NPR ${Number(v).toFixed(2)}`;
+    return `रु. ${Number(v).toFixed(2)}`;
   };
 
   const CustomTooltip = ({ active, payload }) => {
@@ -170,7 +170,7 @@ const RevenueBreakdown = () => {
                   tick={{ fontSize: 12 }}
                 />
                 <YAxis 
-                  label={{ value: 'Revenue (₹)', angle: -90, position: 'insideLeft' }}
+                  label={{ value: 'Revenue (रु.)', angle: -90, position: 'insideLeft' }}
                   tick={{ fontSize: 12 }}
                 />
                 <Tooltip content={<CustomTooltip />} />
