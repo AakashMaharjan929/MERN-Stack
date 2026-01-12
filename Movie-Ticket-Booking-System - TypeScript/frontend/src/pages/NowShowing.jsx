@@ -31,6 +31,10 @@ const NowShowing = () => {
   const [selectedShow, setSelectedShow] = useState(null);
   const [selectedSeats, setSelectedSeats] = useState([]);
   const [paymentMethod, setPaymentMethod] = useState(null);
+  
+  // Modal states for seat count input
+  const [showSeatCountModal, setShowSeatCountModal] = useState(false);
+  const [seatCountInput, setSeatCountInput] = useState("2");
 
   const seatSectionRef = useRef(null);
   const showsSectionRef = useRef(null);
@@ -295,23 +299,174 @@ const NowShowing = () => {
     });
   };
 
-  const pickBestSeats = () => {
+  /**
+   * Greedy Allocation Algorithm for Cinema Seat Selection
+   * 
+   * This implements a classic greedy algorithm similar to LeetCode's Cinema Seat Allocation problem.
+   * 
+   * Algorithm Strategy:
+   * 1. Takes user input for number of seats needed (1-10)
+   * 2. Prioritizes rows from center outward (best viewing experience)
+   * 3. For each row, scans left-to-right for contiguous available seats
+   * 4. Finds blocks of k contiguous seats where k = requested seats
+   * 5. Prefers center seats within each row (better viewing angle)
+   * 6. Returns the first valid block found (greedy approach - takes first best match)
+   * 
+   * Time Complexity: O(R × C × k) where:
+   * - R = number of rows
+   * - C = average seats per row
+   * - k = number of seats requested
+   * 
+   * Space Complexity: O(R × C) for seat availability map
+   * 
+   * Features:
+   * - Ensures contiguous seat allocation (groups stay together)
+   * - Prioritizes center rows and center seats (optimal viewing)
+   * - Avoids already booked or selected seats
+   * - Handles aisles (null seats) in layout
+   * - Provides clear feedback on selection
+   */
+  // Greedy Allocation Algorithm for Best Seat Selection
+  const pickBestSeats = (requestedSeats = null) => {
     if (!selectedShow?.fullShow) return;
 
-    const validSeats = selectedShow.fullShow.availableSeats.filter(s => s !== null);
-    const available = validSeats.filter(s => !s.isBooked);
+    // Get the number of seats to allocate
+    let numSeatsToAllocate = requestedSeats;
+    
+    // If not provided, show modal to ask the user
+    if (numSeatsToAllocate === null) {
+      setShowSeatCountModal(true);
+      return;
+    }
+    
+    // Validate the number
+    if (isNaN(numSeatsToAllocate) || numSeatsToAllocate < 1 || numSeatsToAllocate > 30) {
+      toast.error("Please enter a valid number between 1 and 30");
+      return;
+    }
 
-    const premium = available.filter(s => s.seatType === 'Premium');
-    const standard = available.filter(s => s.seatType === 'Standard');
+    const screenLayout = getScreenLayout();
+    if (!screenLayout) {
+      toast.error("Screen layout not available");
+      return;
+    }
 
-    const best = [...premium.slice(0, 4), ...standard].slice(0, 8 - selectedSeats.length);
+    // Build a map of seat availability
+    const seatMap = new Map();
+    selectedShow.fullShow.availableSeats.forEach(seat => {
+      if (seat) {
+        seatMap.set(seat.seatNumber, seat);
+      }
+    });
 
-    setSelectedSeats(prev => [
-      ...prev,
-      ...best.map(s => s.seatNumber)
-    ].slice(0, 8));
+    // Greedy Algorithm: Find contiguous available seats
+    // Priority: Center rows first, then prefer center columns
+    const bestSeats = [];
+    
+    // Calculate center row for prioritization
+    const centerRowIndex = Math.floor(screenLayout.length / 2);
+    
+    // Create row priority order (center outward)
+    const rowPriority = [];
+    for (let offset = 0; offset < screenLayout.length; offset++) {
+      const upperRow = centerRowIndex - offset;
+      const lowerRow = centerRowIndex + offset;
+      
+      if (upperRow >= 0 && !rowPriority.includes(upperRow)) {
+        rowPriority.push(upperRow);
+      }
+      if (lowerRow < screenLayout.length && !rowPriority.includes(lowerRow)) {
+        rowPriority.push(lowerRow);
+      }
+    }
 
-    toast.success("Best available seats picked!");
+    // Try to find contiguous seats row by row
+    for (const rowIndex of rowPriority) {
+      const row = screenLayout[rowIndex];
+      if (!row) continue;
+
+      // Build array of valid seats in this row (non-null)
+      const rowSeats = row
+        .map((seatDef, colIndex) => ({ seatDef, colIndex }))
+        .filter(({ seatDef }) => seatDef !== null);
+
+      // Find contiguous blocks of available seats
+      for (let startIdx = 0; startIdx <= rowSeats.length - numSeatsToAllocate; startIdx++) {
+        const candidateSeats = [];
+        let allAvailable = true;
+
+        // Check if we can get numSeatsToAllocate contiguous seats starting here
+        for (let i = 0; i < numSeatsToAllocate; i++) {
+          const { seatDef, colIndex } = rowSeats[startIdx + i];
+          const seat = seatMap.get(seatDef.seatNumber);
+          
+          if (!seat || seat.isBooked || selectedSeats.includes(seatDef.seatNumber)) {
+            allAvailable = false;
+            break;
+          }
+          
+          candidateSeats.push({
+            seatNumber: seatDef.seatNumber,
+            colIndex: colIndex,
+            isPremium: seatDef.type === 'Premium'
+          });
+        }
+
+        // If we found a valid contiguous block
+        if (allAvailable && candidateSeats.length === numSeatsToAllocate) {
+          // Calculate how centered this block is (prefer center seats)
+          const rowLength = row.filter(s => s !== null).length;
+          const blockCenter = (candidateSeats[0].colIndex + candidateSeats[candidateSeats.length - 1].colIndex) / 2;
+          const rowCenter = rowLength / 2;
+          const centerDistance = Math.abs(blockCenter - rowCenter);
+          
+          bestSeats.push({
+            seats: candidateSeats,
+            rowIndex: rowIndex,
+            centerDistance: centerDistance,
+            rowPriority: rowPriority.indexOf(rowIndex),
+            isPremium: candidateSeats.some(s => s.isPremium)
+          });
+        }
+      }
+
+      // If we found valid blocks in this row, we can stop (greedy approach)
+      if (bestSeats.length > 0) {
+        break;
+      }
+    }
+
+    if (bestSeats.length === 0) {
+      toast.error(`Could not find ${numSeatsToAllocate} contiguous available seats. Try selecting manually or reduce the number.`);
+      return;
+    }
+
+    // Sort by: row priority first, then by center distance (prefer center seats)
+    bestSeats.sort((a, b) => {
+      if (a.rowPriority !== b.rowPriority) return a.rowPriority - b.rowPriority;
+      return a.centerDistance - b.centerDistance;
+    });
+
+    // Select the best block
+    const selectedBlock = bestSeats[0];
+    const newSeats = selectedBlock.seats.map(s => s.seatNumber);
+
+    setSelectedSeats(newSeats);
+    
+    const rowLetter = String.fromCharCode(65 + selectedBlock.rowIndex);
+    const seatRange = `${newSeats[0]} to ${newSeats[newSeats.length - 1]}`;
+    toast.success(`${numSeatsToAllocate} best seat(s) selected in Row ${rowLetter}: ${seatRange}`);
+  };
+
+  // Handle seat count modal submission
+  const handleSeatCountSubmit = () => {
+    const count = parseInt(seatCountInput, 10);
+    if (isNaN(count) || count < 1 || count > 30) {
+      toast.error("Please enter a valid number between 1 and 30");
+      return;
+    }
+    setShowSeatCountModal(false);
+    pickBestSeats(count);
   };
 
   const getScreenLayout = () => {
@@ -982,7 +1137,10 @@ console.log("Booking Data:", {
 
             {/* Pick Best Seats */}
             <div className="flex justify-center my-6">
-              <button onClick={pickBestSeats} className="bg-gradient-to-r from-green-600 to-emerald-600 px-8 py-4 rounded-full font-bold text-lg shadow-lg hover:shadow-xl transition">
+              <button 
+                onClick={() => pickBestSeats()} 
+                className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 px-8 py-4 rounded-full font-bold text-lg shadow-lg hover:shadow-xl transition transform hover:scale-105"
+              >
                 Pick Best Seats For Me
               </button>
             </div>
@@ -1093,6 +1251,65 @@ console.log("Booking Data:", {
       </div>
 
       <Footer />
+
+      {/* Custom Seat Count Modal */}
+      {showSeatCountModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-3xl p-8 max-w-md w-full mx-4 border-2 border-green-500/50 shadow-2xl transform animate-scaleIn">
+            <div className="text-center mb-6">
+              <div className="text-5xl mb-4">🎯</div>
+              <h2 className="text-3xl font-bold text-green-400 mb-2">
+                Smart Seat Selection
+              </h2>
+              <p className="text-gray-300 text-sm">
+                How many seats do you want to book?
+              </p>
+            </div>
+
+            <div className="mb-6">
+              <input
+                type="number"
+                min="1"
+                max="30"
+                value={seatCountInput}
+                onChange={(e) => setSeatCountInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleSeatCountSubmit();
+                  if (e.key === 'Escape') setShowSeatCountModal(false);
+                }}
+                autoFocus
+                className="w-full px-6 py-4 text-2xl text-center bg-gray-800/50 border-2 border-green-500/30 rounded-xl text-white focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/50 transition"
+                placeholder="Enter number (1-30)"
+              />
+              <p className="text-xs text-gray-400 mt-2 text-center">
+                We'll find the best contiguous seats near the center
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowSeatCountModal(false);
+                  setSeatCountInput("2");
+                }}
+                className="flex-1 px-6 py-3 bg-gray-700 hover:bg-gray-600 rounded-xl font-semibold transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSeatCountSubmit}
+                className="flex-1 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 rounded-xl font-bold transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
+              >
+                Find Seats
+              </button>
+            </div>
+
+            <div className="mt-4 text-center text-xs text-gray-500">
+              Press <kbd className="px-2 py-1 bg-gray-700 rounded">Enter</kbd> to confirm or <kbd className="px-2 py-1 bg-gray-700 rounded">Esc</kbd> to cancel
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

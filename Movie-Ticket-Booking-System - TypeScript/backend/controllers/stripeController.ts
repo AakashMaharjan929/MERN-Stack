@@ -90,7 +90,7 @@ export const createStripeCheckoutSession = async (req: Request, res: Response) =
       line_items: [
         {
           price_data: {
-            currency: 'रु.',
+            currency: 'npr',
             product_data: {
               name: `Ticket: ${movieTitle}`,
               description: `${cinemaName} • ${showDate} • ${showTime} • Seats: ${seats.join(', ')}`,
