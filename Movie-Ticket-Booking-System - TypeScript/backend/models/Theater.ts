@@ -12,6 +12,7 @@ const theaterSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
     location: { type: locationSchema, required: true },
+    managerId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     screens: [{ type: mongoose.Schema.Types.ObjectId, ref: "Screen" }],
   },
   { timestamps: true }
@@ -20,6 +21,7 @@ const theaterSchema = new mongoose.Schema(
 class TheaterClass {
   name!: string;
   location!: Record<string, any>;
+  managerId!: mongoose.Schema.Types.ObjectId;
   screens!: mongoose.Schema.Types.ObjectId[];
 
   async addScreen(screenId: mongoose.Schema.Types.ObjectId) {

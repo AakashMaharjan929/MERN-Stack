@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
+import Theater from '../models/Theater.js';
 import type { Request, Response, NextFunction } from 'express';
 
 export const protect = async (req: Request, res: Response, next: NextFunction) => {
@@ -34,5 +35,35 @@ export const admin = (req: Request, res: Response, next: NextFunction) => {
     next();
   } else {
     res.status(403).json({ message: 'Not authorized as admin' });
+  }
+};
+
+export const theaterManager = (req: Request, res: Response, next: NextFunction) => {
+  if (req.user && (req.user as any).isTheaterManager && (req.user as any).isTheaterManager()) {
+    next();
+  } else {
+    res.status(403).json({ message: 'Not authorized as theater manager' });
+  }
+};
+
+export const isTheaterOwner = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const theaterId = req.params.theaterId || req.body.theaterId;
+    if (!theaterId) {
+      return res.status(400).json({ message: 'Theater ID is required' });
+    }
+
+    const theater = await Theater.findById(theaterId);
+    if (!theater) {
+      return res.status(404).json({ message: 'Theater not found' });
+    }
+
+    if (theater.managerId.toString() !== (req.user as any)._id.toString()) {
+      return res.status(403).json({ message: 'Not authorized for this theater' });
+    }
+
+    next();
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
   }
 };

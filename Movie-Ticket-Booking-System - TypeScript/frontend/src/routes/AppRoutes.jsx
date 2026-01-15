@@ -45,6 +45,21 @@ import MyAccount from '../pages/MyAccount';
 import StripeSuccess from '../pages/StripeSuccess';
 import PaymentSuccess from '../pages/PaymentSuccess';
 
+// Theater Manager imports
+import TheaterManagerLayout from '../theater-manager/TheaterManagerLayout';
+import ManagerDashboard from '../theater-manager/pages/Dashboard';
+import ManagerTheaterDetails from '../theater-manager/pages/TheaterDetails';
+import ManagerScreens from '../theater-manager/pages/Screens';
+import ManagerShows from '../theater-manager/pages/Shows';
+import ManagerSchedule from '../theater-manager/pages/Schedule';
+import ManagerBookings from '../theater-manager/pages/Bookings';
+import ManagerReports from '../theater-manager/pages/Reports';
+
+// Admin Theater Manager
+import CreateTheaterManager from '../admin/components/TheaterManager/Create';
+import ManagerList from '../admin/components/TheaterManager/List';
+import EditTheaterManager from '../admin/components/TheaterManager/Edit';
+
 function AppRoutes() {
   return (
     <BrowserRouter>
@@ -53,10 +68,30 @@ function AppRoutes() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/login" element={<LoginPage />} />
         
+        {/* Theater Manager routes - Sidebar persists via TheaterManagerLayout */}
+        <Route path="/theater-manager" element={<TheaterManagerLayout />}>
+          <Route index element={<Navigate to="dashboard" replace />} />
+          <Route path="dashboard" element={<ManagerDashboard />} />
+          <Route path="theater" element={<ManagerTheaterDetails />} />
+          <Route path="screens" element={<ManagerScreens />} />
+          <Route path="shows" element={<ManagerShows />} />
+          <Route path="shows/schedule" element={<ManagerSchedule />} />
+          <Route path="shows/schedule/:id" element={<ManagerSchedule />} />
+          <Route path="bookings" element={<ManagerBookings />} />
+          <Route path="reports" element={<ManagerReports />} />
+          <Route path="*" element={<div className="text-gray-800">404 - Page Not Found</div>} />
+        </Route>
+        
         {/* Nested admin routes - Sidebar persists via AdminLayout */}
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Navigate to="dashboard" replace />} /> {/* /admin → /admin/dashboard */}
           <Route path="dashboard" element={<Dashboard />} />
+          
+          {/* Theater Managers */}
+          <Route path="theater-managers/create" element={<CreateTheaterManager />} />
+          <Route path="theater-managers/list" element={<ManagerList />} />
+          <Route path="theater-managers/edit/:id" element={<EditTheaterManager />} />
+          
           {/* Theaters nested routes - Now with layout for proper Outlet rendering */}
          <Route path="theaters" element={<TheatersLayout />}>
   <Route index element={<div className="text-[#6B7280]">Select an action: <Link to="add">Add</Link> or <Link to="list">View</Link> Theaters</div>} />

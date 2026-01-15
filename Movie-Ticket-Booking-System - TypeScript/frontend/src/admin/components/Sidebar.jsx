@@ -72,6 +72,15 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     },
     { path: 'reports', label: 'Reports', icon: 'fas fa-chart-pie' },
     { path: 'settings', label: 'Settings', icon: 'fas fa-cog' },
+    {
+      path: 'theater-managers',
+      label: 'Theater Managers',
+      icon: 'fas fa-user-tie',
+      subItems: [
+        { path: 'theater-managers/create', label: 'Create Manager', icon: 'fas fa-plus-circle' },
+        { path: 'theater-managers/list', label: 'Manager List', icon: 'fas fa-list' },
+      ],
+    },
   ];
 
   const handleNavigation = (path) => {

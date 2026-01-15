@@ -1,20 +1,29 @@
 // Fixed AdminRouter.jsx - Use relative paths for nested router behavior
+import React, { useState } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { useAuthGuard } from '../hooks/useAuthGuard'; // Redirect if not admin
 import Dashboard from '../pages/Dashboard';
 import Sidebar from '../components/Sidebar'; // Assuming Sidebar is in components folder
+import CreateTheaterManager from '../components/TheaterManager/Create';
+import ManagerList from '../components/TheaterManager/List';
 
 const AdminRouter = () => {
   useAuthGuard('admin'); // Hook checks role from token
+  const [isOpen, setIsOpen] = useState(true); // Initialize sidebar state
 
   return (
     <div className="admin-layout flex h-screen bg-gray-50">
-      <Sidebar /> {/* Fixed sidebar stays put */}
+      <Sidebar isOpen={isOpen} setIsOpen={setIsOpen} /> {/* Fixed sidebar stays put */}
       <div className="main-content flex-1 ml-64 p-6 overflow-y-auto">
         {/* <Header /> - Add if needed; it would go here and span the full width */}
         <Routes>
           <Route index element={<Dashboard />} /> {/* Default route for /admin */}
           <Route path="dashboard" element={<Dashboard />} />
+          
+          {/* Theater Managers */}
+          <Route path="theater-managers/create" element={<CreateTheaterManager />} />
+          <Route path="theater-managers/list" element={<ManagerList />} />
+          
           {/* Placeholder routes - replace with actual pages as you build them */}
           <Route path="theaters" element={<div className="text-gray-800">Theaters Page (TBD)</div>} />
           <Route path="screens" element={<div className="text-gray-800">Screens Page (TBD)</div>} />

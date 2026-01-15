@@ -10,6 +10,7 @@ import paymentRoutes from "./paymentRoutes.js";
 import stripeRoutes from "./stripeRoutes.js";
 import esewaRoutes from "./esewaRoutes.js";
 import notificationRoutes from "./notificationRoutes.js";
+import theaterManagerRoutes from "./theaterManagerRoutes.js";
 
 const router = express.Router();
 
@@ -24,5 +25,6 @@ router.use("/payment", paymentRoutes);
 router.use("/stripe", stripeRoutes);
 router.use("/esewa", esewaRoutes);
 router.use("/notifications", notificationRoutes);
+router.use("/theater-manager", theaterManagerRoutes);
 
 export default router;

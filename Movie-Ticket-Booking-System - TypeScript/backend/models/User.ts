@@ -7,8 +7,9 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   phone: { type: String, required: true },
   password: { type: String, required: true },
-  role: { type: String, enum: ["customer", "admin"], default: "customer" },
-  status: { type: String, enum: ["active", "blacklisted"], default: "active" }
+  role: { type: String, enum: ["customer", "admin", "theater_manager"], default: "customer" },
+  status: { type: String, enum: ["active", "blacklisted"], default: "active" },
+  theaterId: { type: mongoose.Schema.Types.ObjectId, ref: "Theater", default: null }
 }, { timestamps: true });
 
 userSchema.index({ email: 1 });
@@ -23,6 +24,7 @@ class UserClass {
   password!: string;
   role!: string;
   status!: string;
+  theaterId?: mongoose.Schema.Types.ObjectId;
   createdAt!: Date;
 
   static async createUser({ name, email, phone, password, role }: any) {
@@ -64,6 +66,10 @@ class UserClass {
 
   isAdmin() {
     return this.role === "admin";
+  }
+
+  isTheaterManager() {
+    return this.role === "theater_manager";
   }
 
   isBlacklisted() {

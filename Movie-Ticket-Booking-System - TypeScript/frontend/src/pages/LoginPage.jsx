@@ -20,7 +20,12 @@ const LoginPage = () => {
     if (token && user) {
       try {
         const userData = JSON.parse(user);
-        const redirectPath = userData.role === 'admin' ? '/admin/dashboard' : '/';
+        let redirectPath = '/';
+        if (userData.role === 'admin') {
+          redirectPath = '/admin/dashboard';
+        } else if (userData.role === 'theater_manager') {
+          redirectPath = '/theater-manager/dashboard';
+        }
         navigate(redirectPath, { replace: true });
       } catch {
         // If parsing fails, clear invalid data
@@ -104,8 +109,14 @@ const LoginPage = () => {
 
         // Conditional redirect based on user role
         const userRole = response.data.user.role;
-        const redirectPath = userRole === 'admin' ? '/admin/dashboard' : '/';
-        setTimeout(() => navigate(redirectPath), 4000); // Redirect to home or admin dashboard after success
+        let redirectPath = '/';
+        if (userRole === 'admin') {
+          redirectPath = '/admin/dashboard';
+        } else if (userRole === 'theater_manager') {
+          redirectPath = '/theater-manager/dashboard';
+        }
+        localStorage.setItem('userRole', userRole);
+        setTimeout(() => navigate(redirectPath), 4000); // Redirect after success
       }
     } catch (err) {
       setError(err.response?.data?.message || "Login failed. Please try again.");
